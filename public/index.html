@@ -1,0 +1,60 @@
+<!doctype html>
+<html>
+    <head>
+        <title>osmly</title>
+        <meta charset='utf-8'>
+
+        <link rel="stylesheet" href="js/lib/leaflet-0.7dev/leaflet.css" />
+        <link rel="stylesheet" href="css/leaflet.label.css" />
+        <link rel="stylesheet" href="css/animations.css" />
+        <link rel="stylesheet" href="css/modal.css" />
+        <link rel="stylesheet" href="css/leaflet-overwrite.css" />
+        <link rel="stylesheet" href="css/css.css" />
+        <script src="js/lib/leaflet-0.7dev/leaflet.js"></script>
+        <script src="js/lib/leaflet.label.js"></script>
+        <script src="js/lib/leaflet.draw.js"></script>
+        <script src="js/lib/sha.js"></script>
+        <script src="js/lib/osmauth.js"></script>
+        <script src="js/lib/Bing.js"></script>
+        <script src="js/lib/osm_geojson.js"></script>
+        <script src="js/lib/modal.js"></script>
+        <script src="js/lib/zepto.js"></script>
+
+        <script src="js/osmly/settings.js"></script>
+        <script src="js/osmly/osmly.js"></script>
+        <script src="js/osmly/osmly.map.js"></script>
+        <script src="js/osmly/osmly.ui.js"></script>
+        <script src="js/osmly/osmly.connect.js"></script>
+        <script src="js/osmly/osmly.import.js"></script>
+        <script src="js/osmly/osmly.location.js"></script>
+        <script src="js/osmly/osmly.geocoding.js"></script>
+        <script src="js/osmly/common.js"></script>
+        <script src="js/osmly/animations.js"></script>
+	
+       
+    </head>
+    <body>
+        <div id="map"></div>
+        <script type="text/javascript">
+        /* required settings (see settings_documentation.md):
+            - title
+            - instructions
+            - db
+            - context
+            - problems
+            - usePropertyAsTag
+        */
+
+            var config = {
+                title: '',
+                instructions: '<ul>Para comenzar escoge si quieres obtener automáticamente tu posición, o si prefieres introducirla a mano</ul>',
+                db: 'http://energia.deusto.es:3001/errors/near',
+                usePropertyAsTag: ['name', 'area', 'building', 'landuse', 'highway', 'leisure', 'amenity', 'fixme'],
+                context: {building: true, highway: true, amenity: true, leisure: true},
+                problems: ['Borrar elemento', 'Elemento correcto', 'No se puede arreglar', 'Unir geometrías']
+            };
+            osmly.go(config);
+        </script>
+    </body>
+</html>
+

@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Map</title>
+
+    <link rel="stylesheet" href="http://energia.deusto.es/validator/public/components/leaflet/css/leaflet.css" />
+    <script src="http://energia.deusto.es/validator/public/components/leaflet/js/leaflet.js"></script>
+    <script src="http://energia.deusto.es/validator/public/components/leaflet/js/jQuery.js"></script>
+</head>
+<body>
+	<div id="map"></div>
+    <script type="text/javascript">
+       var map = L.map('map').setView([43.25, -2.85], 10);
+        
+        L.tileLayer('http://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            //attribution: 'Map data &copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors, <a href="http://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, Imagery © <a href="http://cloudmade.com">CloudMade</a>',
+            maxZoom: 18
+        }).addTo(map);
+        
+        var layer100 = L.layerGroup().addTo(map),
+	    layer101 = L.layerGroup(),
+	    layer102 = L.layerGroup(),
+	    layer103 = L.layerGroup(),
+	    layer104 = L.layerGroup(),
+	    layer105 = L.layerGroup(),
+	    layer106 = L.layerGroup(),
+	    layer107 = L.layerGroup(),
+	    layer108 = L.layerGroup(),
+	    layer109 = L.layerGroup(),
+	    layer110 = L.layerGroup(),
+	    layer111 = L.layerGroup(),
+	    layer112 = L.layerGroup(),
+	    layer113 = L.layerGroup(),
+	    layer114 = L.layerGroup(),
+	    layer115 = L.layerGroup(),
+	    layer116 = L.layerGroup(),
+	    layer117 = L.layerGroup(),
+	    layer118 = L.layerGroup(),
+	    layer119 = L.layerGroup(),
+	    layer120 = L.layerGroup(),
+	    layer121 = L.layerGroup(),
+	    layer122 = L.layerGroup();
+        
+// 	$.getJSON('http://energia.deusto.es:8000/node/-99144', function(data) {
+// 	  console.log( "lat  "+data[0].lat+" lon  "+data[0].lon);
+// 	  OSMparser(data[0]);
+// 	});
+//       
+// 	$.getJSON('http://energia.deusto.es:8000/way/-12', function(data) {
+// 	  OSMparser(data[0]);
+// 	});
+// 	
+	var baseMaps ={
+	  "Area no cerrada": layer100,
+	  "Cruce de vias": layer101,
+	  "Deporte": layer102,
+	  "Edificio dentro de edificio": layer103,
+	  "Edificios superpuestos": layer104,
+	  "Especificar el tipo de cultivo": layer117,
+	  "Especificar el tipo de agua": layer118,
+	  "Especificar el tipo de comercio": layer119,
+	  "Estadio": layer105,
+	  "Hidrografia construida": layer106,
+	  "Interseccion rio via": layer107,
+	  "Minas a cielo abierto": layer108,
+	  "Nodo proximo a carreteras": layer109,
+	  "Nodo proximo a vial": layer110,
+	  "Nodos duplicados en dos vias no cerradas": layer111,
+	  "Oficinas": layer112,
+	  "Parking publico o privado": layer113,
+	  "Parking privado": layer114,
+	  "Polideportivo": layer115,
+	  "Portal": layer116,
+	  "Vias con nombres iguales": layer120,
+	  "Vias sin etiquetar": layer121,
+	  "Vias sin nombre": layer122
+	};
+      L.control.layers(baseMaps).addTo(map);
+      var layers = new Array();
+      var idErr = 100;
+      
+      var limitError = 4 * map.getZoom();
+      
+      map.on('dragend', function(e){
+      console.log("dragend");
+      while(layers.length != 0){
+	var element = layers.pop();
+	map.removeLayer(element);
+      }
+	var bound = map.getBounds();
+	console.log("peticion enviada");
+	$.getJSON('http://energia.deusto.es:8000/numberErrorType/'+idErr+'/'+bound.getWest()+'/'+bound.getSouth()+'/'+bound.getEast()+'/'+bound.getNorth()+'/'+limitError, function(data) {
+	//$.getJSON('http://energia.deusto.es:8000/errorType/'+idErr+'/'+bound.getWest()+'/'+bound.getSouth()+'/'+bound.getEast()+'/'+bound.getNorth(), function(data) {
+	  for(var i = 0; i < data.length; i++){
+	    OSMparser(data[i]);
+	  }
+	});
+      });
+      
+      map.on('zoomend', function(e){
+      console.log("zoomend "+map.getZoom());
+      limitError = 4 * map.getZoom();
+      while(layers.length != 0){
+	var element = layers.pop();
+	map.removeLayer(element);
+      }
+	var bound = map.getBounds();
+	console.log("peticion enviada");
+ 	$.getJSON('http://energia.deusto.es:8000/numberErrorType/'+idErr+'/'+bound.getWest()+'/'+bound.getSouth()+'/'+bound.getEast()+'/'+bound.getNorth()+'/'+limitError, function(data) {
+ 	//$.getJSON('http://energia.deusto.es:8000/errorType/'+idErr+'/'+bound.getWest()+'/'+bound.getSouth()+'/'+bound.getEast()+'/'+bound.getNorth(), function(data) {
+	  for(var i = 0; i < data.length; i++){
+	    OSMparser(data[i]);
+	  }
+	});
+      });
+      
+      map.on('baselayerchange', function(e){
+      console.log("baselayerchange");
+      while(layers.length!=0){
+	var element = layers.pop();
+	map.removeLayer(element);
+      }
+	var bound = map.getBounds();
+	switch(e.name){
+	  case 'Area no cerrada':{ idErr=100;
+	  }break;
+	  case 'Cruce de vias':{idErr=101;
+	  }break;
+	  case 'Deporte':{idErr=102;
+	  }break;
+	  case 'Edificio dentro de edificio':{idErr=103;
+	  }break;
+	  case 'Edificios superpuestos':{idErr=104;
+	  }break;
+	  case 'Estadio':{idErr=105;
+	  }break;
+	  case 'Hidrografia construida':{idErr=106;
+	  }break;
+	  case 'Interseccion rio via':{idErr=107;
+	  }break;
+	  case 'Minas a cielo abierto':{idErr=108;
+	  }break;
+	  case 'Nodo proximo a carreteras':{idErr=109;
+	  }break;
+	  case 'Nodo proximo a vial':{idErr=110;
+	  }break;
+	  case 'Nodos duplicados en dos vias no cerradas':{idErr=111;
+	  }break;
+	  case 'Oficinas':{idErr=112;
+	  }break;
+	  case 'Parking público o privado':{idErr=113;
+	  }break;
+	  case 'Parking privado':{idErr=114;
+	  }break;
+	  case 'Polideportivo':{idErr=115;
+	  }break;
+	  case 'Portal':{idErr=116;
+	  }break;
+	  case 'Especificar el tipo de cultivo':{idErr=117;
+	  }break;
+	  case 'Especificar el tipo de agua':{idErr=118;
+	  }break;
+	  case 'Especificar el tipo de comercio':{idErr=119;
+	  }break;
+	  case 'Vias con nombres iguales':{idErr=120;
+	  }break;
+	  case 'Vias sin etiquetar':{idErr=121;
+	  }break;
+	  case 'Vias sin nombre':{idErr=122;
+	  }break;
+	}
+	console.log("peticion enviada");
+	$.getJSON('http://energia.deusto.es:8000/numberErrorType/'+idErr+'/'+bound.getWest()+'/'+bound.getSouth()+'/'+bound.getEast()+'/'+bound.getNorth()+'/'+limitError, function(data) {
+ 	//$.getJSON('http://energia.deusto.es:8000/errorType/'+idErr+'/'+bound.getWest()+'/'+bound.getSouth()+'/'+bound.getEast()+'/'+bound.getNorth(), function(data) {
+	  for(var i = 0; i < data.length; i++){
+	    OSMparser(data[i]);
+	  }
+	});
+      });
+      
+      function OSMparser(data){
+      var marker;
+	switch(data.type){
+	  case "node":{
+	    marker = L.marker([data.lat, data.lon]).addTo(map);
+	    var s = "Tags :"
+	  }break;
+	  case "way":{
+	      var nodos= data.nodes;
+	      if(nodos.id==nodos[nodos.length-1].id){
+		marker = L.polygon([], {color: 'blue'}).addTo(map);
+		for(var i = 0; i < nodos.length; i++){
+		  var latlng = new L.LatLng(nodos[i].lat, nodos[i].lon);
+		   marker.addLatLng(latlng);
+		  map.setView(latlng, 10);
+		}
+	      }
+	      else{
+		var pointList=new Array();
+		for(var i = 0; i < nodos.length; i++){
+		  var latlng = new L.LatLng(nodos[i].lat, nodos[i].lon);
+		  pointList.push(latlng);
+		}
+		 marker = new L.Polyline(pointList, {color: 'red'}).addTo(map);
+	      }
+	  }break;
+	}
+	if(data.tags!=null){
+	  var s = "Tags :"
+	  for( var r = 0; r < data.tags.length; r++){
+	    s = s+" "+data.tags[r];
+	    if( (r%2) == 0){
+	      s=s+": ";
+	    }
+	    else{
+	      s = s+", ";
+	    }
+	  }
+	  marker.bindPopup(" "+s);
+	}
+	layers.push(marker);
+	
+	switch(idErr){
+	  case 100 : { layer100.addLayer(marker);
+	  }break;
+	  case 101 : {layer101.addLayer(marker);
+	  }break;
+	  case 102 : {layer102.addLayer(marker);
+	  }break;
+	  case 103 : {layer103.addLayer(marker);
+	  }break;
+	  case 104 : {layer104.addLayer(marker);
+	  }break;
+	  case 105 : {layer105.addLayer(marker);
+	  }break;
+	  case 106 : {layer106.addLayer(marker);
+	  }break;
+	  case 107 : {layer107.addLayer(marker);
+	  }break;
+	  case 108 : {layer108.addLayer(marker);
+	  }break;
+	  case 109 : {layer109.addLayer(marker);
+	  }break;
+	  case 110 : {layer110.addLayer(marker);
+	  }break;
+	  case 111 : {layer111.addLayer(marker);
+	  }break;
+	  case 112 : {layer112.addLayer(marker);
+	  }break; 
+	  case 113 : {layer113.addLayer(marker);
+	  }break;
+	  case 114 : {layer114.addLayer(marker);
+	  }break;
+	  case 115 : {layer115.addLayer(marker);
+	  }break;
+	  case 116 : {layer116.addLayer(marker);
+	  }break;
+	  case 117 : {layer117.addLayer(marker);
+	  }break;
+	  case 118 : {layer118.addLayer(marker);
+	  }break;
+	  case 119 : {layer119.addLayer(marker);
+	  }break;
+	  case 120 : {layer120.addLayer(marker);
+	  }break;
+	  case 121 : {layer121.addLayer(marker);
+	  }break;
+	  case 122 : {layer122.addLayer(marker);
+	  }break;
+	}
+      }
+      
+      
+    </script>
+</body>
+</html>

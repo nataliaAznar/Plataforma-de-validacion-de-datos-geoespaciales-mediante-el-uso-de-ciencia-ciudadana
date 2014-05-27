@@ -1,0 +1,42 @@
+<!DOCTYPE HTML>
+<html lang="en-US">
+<head>
+    <meta charset="UTF-8">
+    <title>File Upload showing Upload Progress</title>
+    <style>
+        * {
+            font-family: Verdana;
+            font-size: 12px;
+            background-image: url("/static/mapa.png");
+	    background-size: 100%;
+        }
+        form {
+             height:50px;
+             width:350px;
+             position: absolute;
+             left: 50%;
+             top: 50%;
+             background-color:#CCC;
+             background-image: none;
+             margin: -200px 0 0 -200px;
+         }
+         form input{
+	    background-image: none;
+         }
+    </style>
+</head>
+<body>
+    <div align = "center"><form id='uploadForm' enctype='multipart/form-data'> <!--  action='/fileUpload' -->
+        <input id='inputFile' type='file'> <!-- name='uploadingFile' is meaningless -->
+        </br><input id='inputSubmit' type='button' value='enviar'>
+        <div id="fileName"></div>
+        <div id="fileSize"></div>
+        <div id="fileType"></div>
+        <div id="progress"></div>
+    </form></div>
+    
+ 
+    <script type='text/javascript' src='http://code.jquery.com/jquery-latest.min.js'></script>
+    <script type='text/javascript' src='http://energia.deusto.es/validator/public/upload.js'></script>
+</body>
+</html> 
