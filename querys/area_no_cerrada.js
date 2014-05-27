@@ -1,7 +1,7 @@
 var pg = require("/usr/lib/node_modules/pg"),
     obtenerId = require('/var/www/localhost/htdocs/validator/obtenerId'),
     conString = "tcp://postgres:4321@localhost/validator",
-    async = require(".a./node_modules/async"),
+    async = require("../node_modules/async"),
     client = new pg.Client(conString);
 
 var tableName = "error_100";
@@ -97,10 +97,10 @@ var clientOne, clientTwo ;
 			}
 			else{
 			  eachClient.query(query, function(err, result) {
-			  if(err) {
-			    console.log(query);
-			    console.error('area no cerrada  INSERT  error running query', err);
-			  }  
+			    if(err) {
+			      console.log(query);
+			      console.error('area no cerrada  INSERT  error running query', err);
+			    }  
 			    eachClient.end();
 			    callbackEach();
 			  });
@@ -115,28 +115,55 @@ var clientOne, clientTwo ;
 	});
     },
     function(callbackParallel){
-//         clientTwo = new pg.Client(conString);
-// 	clientTwo.connect(function(err) {
-// 	  if(err) {
-// 	    callbackParallel();
-// 	    return console.error('could not connect to postgres', err);
-// 	  }
-// 	  else{
-// 	     client.query("SELECT osm_id, way, tags, ST_AsText(ST_MakeLine(ST_EndPoint(way), ST_StartPoint(way))) AS way1 FROM " + token + "_line WHERE (tags ? 'building' OR tags ? 'landuse' ) AND NOT tags @> '\"area\"=>\"no\"' AND ST_ISCLOSED(way) = FALSE;", function(err, result) {
-// 	    if(err) {
-// 	      callback();
-// 	      console.log("SELECT osm_id, way, tags FROM " + token + "_line WHERE (tags ? 'building' OR tags ? 'landuse' ) AND NOT tags @> '\"area\"=>\"no\"' AND ST_ISCLOSED(way) = FALSE;");
-// 	      return console.error('area no cerrada  SELECT2  error running query', err);
-// 	    }
-// 	    
-// 	     });
-// 	  }
-// 	});
-      callbackParallel();
+        clientTwo = new pg.Client(conString);
+	clientTwo.connect(function(err) {
+	  if(err) {
+	    callbackParallel();
+	    return console.error('could not connect to postgres', err);
+	  }
+	  else{
+	     clientTwo.query("SELECT osm_id, way, tags, ST_AsText(ST_MakeLine(ST_EndPoint(way), ST_StartPoint(way))) AS way1 FROM " + token + "_line WHERE (tags ? 'building' OR tags ? 'landuse' ) AND NOT tags @> '\"area\"=>\"no\"' AND ST_ISCLOSED(way) = FALSE;", function(err, result) {
+		if(err) {
+		  callback();
+		  console.log("SELECT osm_id, way, tags FROM " + token + "_line WHERE (tags ? 'building' OR tags ? 'landuse' ) AND NOT tags @> '\"area\"=>\"no\"' AND ST_ISCLOSED(way) = FALSE;");
+		  return console.error('area no cerrada  SELECT2  error running query', err);
+		}
+		else{
+		  var typess = new Array("way");
+		  var idss = new Array(); 
+		  async.each(result.rows, function( row, callbackEach) {
+		    var eachClientTwo = new pg.Client(conString);
+		    idss[0] = row.osm_id;
+		    var tags = row.tags;
+		    var query = "INSERT INTO error_100 (geom, tags, id_osm, type_osm, focus) VALUES ( ARRAY[st_transform('"+row.way+"', 4326)], ARRAY['"+tags.replace(/'/g, "''")+"'::hstore], '{"+idss[0]+"}', ARRAY['"+typess[0]+"'], st_transform(ST_SetSRID(ST_GeomFromText('"+ row.way1+"'),900913), 4326));";
+		    eachClientTwo.connect(function(err){
+			if(err) {
+			  callbackEach();
+			  console.log('could not connect to postgres', err);
+			}
+			else{
+			  eachClientTwo.query(query, function(err, result) {
+			    if(err) {
+			      console.log(query);
+			      console.log('area no cerrada  INSERT2  error running query', err);
+			    }
+			    eachClientTwo.end();
+			    callbackEach();
+			  });
+			}
+		    });
+		  }, function(err){
+		      callbackParallel();
+		  });
+		}	    
+	     });
+	  }
+	});
     }
 ],
 
 function(err, results){
+  console.log("1 - Ejecutando area no cerrada");
   clientTwo.end();
   clientOne.end();
   callback();
@@ -144,22 +171,12 @@ function(err, results){
   
   
   
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
+    
   
   
    
   
-  /*
+ /* 
   
   client.connect(function(err) {
 	  var insertNumer;
