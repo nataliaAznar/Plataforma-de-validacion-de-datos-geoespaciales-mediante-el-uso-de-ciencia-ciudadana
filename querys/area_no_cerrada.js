@@ -1,6 +1,7 @@
 var pg = require("/usr/lib/node_modules/pg"),
     obtenerId = require('/var/www/localhost/htdocs/validator/obtenerId'),
     conString = "tcp://postgres:4321@localhost/validator",
+    async = require(".a./node_modules/async"),
     client = new pg.Client(conString);
 
 var tableName = "error_100";
@@ -66,7 +67,101 @@ exports.createTable = function createTable(callback){
 
 
 exports.test = function test(token, callback){
-    client.connect(function(err) {
+var clientOne, clientTwo ;
+  async.parallel([
+    function(callbackParallel){
+        clientOne = new pg.Client(conString);
+	clientOne.connect(function(err) {
+	  if(err) {
+	    callbackParallel();
+	    console.log('could not connect to postgres', err);
+	  }
+	  else{
+	     clientOne.query("SELECT osm_id, way, tags, ST_AsText(ST_MakeLine(ST_EndPoint(way), ST_StartPoint(way))) AS way1  FROM " + token + "_polygon WHERE ST_IsClosed(way) = false;", function(err, result) {
+	    if(err) {
+	      callbackParallel();
+	      console.log("SELECT osm_id, way, tags FROM " + token + "_polygon WHERE ST_IsClosed(way) = false;");
+	      return console.error('area no cerrada  SELECT  error running query', err);
+	    }
+	      var types = new Array("way");
+	      var ids = new Array();
+	      async.each(result.rows, function( row, callbackEach) {
+		 var eachClient = new pg.Client(conString);
+		  ids[0] = row.osm_id;
+		  var tags = row.tags;
+		  var query = "INSERT INTO error_100 (geom, tags, id_osm, type_osm, focus) VALUES (ARRAY[ st_transform('"+row.way+"', 4326)], ARRAY['"+tags.replace(/'/g, "''")+"'::hstore], '{"+ids[0]+"}', ARRAY['"+types[0]+"'], st_transform(ST_SetSRID(ST_GeomFromText('"+ row.way1+"'),900913), 4326) );";
+		   eachClient.connect(function(err){
+		      if(err) {
+			  callbackEach(err);
+			  console.log('could not connect to postgres', err);
+			}
+			else{
+			  eachClient.query(query, function(err, result) {
+			  if(err) {
+			    console.log(query);
+			    console.error('area no cerrada  INSERT  error running query', err);
+			  }  
+			    eachClient.end();
+			    callbackEach();
+			  });
+			}
+		 });
+		  
+	      }, function(err){
+		callbackParallel();
+	    });
+	     });
+	  }
+	});
+    },
+    function(callbackParallel){
+//         clientTwo = new pg.Client(conString);
+// 	clientTwo.connect(function(err) {
+// 	  if(err) {
+// 	    callbackParallel();
+// 	    return console.error('could not connect to postgres', err);
+// 	  }
+// 	  else{
+// 	     client.query("SELECT osm_id, way, tags, ST_AsText(ST_MakeLine(ST_EndPoint(way), ST_StartPoint(way))) AS way1 FROM " + token + "_line WHERE (tags ? 'building' OR tags ? 'landuse' ) AND NOT tags @> '\"area\"=>\"no\"' AND ST_ISCLOSED(way) = FALSE;", function(err, result) {
+// 	    if(err) {
+// 	      callback();
+// 	      console.log("SELECT osm_id, way, tags FROM " + token + "_line WHERE (tags ? 'building' OR tags ? 'landuse' ) AND NOT tags @> '\"area\"=>\"no\"' AND ST_ISCLOSED(way) = FALSE;");
+// 	      return console.error('area no cerrada  SELECT2  error running query', err);
+// 	    }
+// 	    
+// 	     });
+// 	  }
+// 	});
+      callbackParallel();
+    }
+],
+
+function(err, results){
+  clientTwo.end();
+  clientOne.end();
+  callback();
+});
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+   
+  
+  /*
+  
+  client.connect(function(err) {
 	  var insertNumer;
 	  var insertNumer2;
 	  if(err) {
@@ -80,38 +175,54 @@ exports.test = function test(token, callback){
 	      console.log("SELECT osm_id, way, tags FROM " + token + "_polygon WHERE ST_IsClosed(way) = false;");
 	      return console.error('area no cerrada  SELECT  error running query', err);
 	    }
-	    insertNumer = result.rows.length;
-	    var ressultCount = result.rows.length;
+
 	    var types = new Array("way");
 	    var ids = new Array();
 	    var resultado = result.rows;
-	    for(var i = 0; i < ressultCount; i++){
-		ids[0] = resultado[i].osm_id;
-		    var tags = resultado[i].tags;
-		    var query = "INSERT INTO error_100 (geom, tags, id_osm, type_osm, focus) VALUES (ARRAY[ st_transform('"+resultado[i].way+"', 4326)], ARRAY['"+tags.replace(/'/g, "''")+"'::hstore], '{"+ids[0]+"}', ARRAY['"+types[0]+"'], st_transform(ST_SetSRID(ST_GeomFromText('"+ resultado[i].way1+"'),900913), 4326) );";
-		  client.query(query, function(err, result) {
-		    if(err) {
-		      console.log(query);
-		      insertNumer--;
-		      console.error('area no cerrada  INSERT  error running query', err);
-		      client.end();
-		    }  
-		    else{
-		      insertNumer--;
-		    }
-		    if((insertNumer == 0) && (insertNumer2 == 0)){
-		      console.log("1 - Ejecutando area no cerrada");
-		      callback();
-		      client.end();
-		    }
-		});
+	    async.each(resultado, function( item, callback2) {
+	      var paralelClient = new pg.Client(conString);
+		ids[0] = item.osm_id;
+		    var tags = item.tags;
+		    var query = "INSERT INTO error_100 (geom, tags, id_osm, type_osm, focus) VALUES (ARRAY[ st_transform('"+item.way+"', 4326)], ARRAY['"+tags.replace(/'/g, "''")+"'::hstore], '{"+ids[0]+"}', ARRAY['"+types[0]+"'], st_transform(ST_SetSRID(ST_GeomFromText('"+ item.way1+"'),900913), 4326) );";
+		    paralelClient.connect(function(err){
+		      if(err) {
+			  callback2(err);
+			  console.log('could not connect to postgres', err);
+			}
+			paralelClient.query(query, function(err, result) {
+			if(err) {
+			  console.log(query);
+			  insertNumer--;
+			  console.error('area no cerrada  INSERT  error running query', err);
+			  client.end();
+			  paralelClient.end();
+			}  
+			else{
+			  insertNumer--;
+			  paralelClient.end();
+			}
+			if((insertNumer == 0) && (insertNumer2 == 0)){
+			  console.log("1 - Ejecutando area no cerrada");
+			  callback2();
+			  client.end();
+			}
+		    });
+		 });
 	      }
+	      }, function(err){
+		callback();
+	    });
 	      if((insertNumer == 0) && (insertNumer2 == 0)){
 		      console.log("1 - Ejecutando area no cerrada");
 		      callback();
 		      client.end();
 		    }
 	  });
+	  
+
+
+
+
 	    
 	  client.query("SELECT osm_id, way, tags, ST_AsText(ST_MakeLine(ST_EndPoint(way), ST_StartPoint(way))) AS way1 FROM " + token + "_line WHERE (tags ? 'building' OR tags ? 'landuse' ) AND NOT tags @> '\"area\"=>\"no\"' AND ST_ISCLOSED(way) = FALSE;", function(err, result) {
 	   // console.log("Select 2 ejecutada");
@@ -126,24 +237,37 @@ exports.test = function test(token, callback){
 	    var idss = new Array();
 	    var resultado = result.rows;
 	    for(var i = 0; i < ressultCount; i++){
+	      console.log(ressultCount);
+	      var paralelClient2 = new pg.Client(conString);
 	      idss[0] = resultado[i].osm_id;
 		var tags = resultado[i].tags;
 		var query = "INSERT INTO error_100 (geom, tags, id_osm, type_osm, focus) VALUES ( ARRAY[st_transform('"+resultado[i].way+"', 4326)], ARRAY['"+tags.replace(/'/g, "''")+"'::hstore], '{"+idss[0]+"}', ARRAY['"+typess[0]+"'], st_transform(ST_SetSRID(ST_GeomFromText('"+ resultado[i].way1+"'),900913), 4326));";
-		    client.query(query, function(err, result) {
-		      if(err) {
-			console.log(query);
-			insertNumer2--;
-			return console.error('area no cerrada  INSERT2  error running query', err);
-		      }
-		      else{
-			insertNumer2--;
-		      }
-		      if((insertNumer == 0) && (insertNumer2 == 0)){
-			console.log("1 - Ejecutando area no cerrada");
-			callback();
-			client.end();
-		      }
+		paralelClient2.connect(function(err){
+		  console.log("conectado");
+		  if(err) {
+		      callback();
+		      console.log('could not connect to postgres', err);
+		    }
+		    console.log("a");
+		  paralelClient2.query(query, function(err, result) {
+		    console.log("Insert hecha");
+		    if(err) {
+		      console.log(query);
+		      insertNumer2--;
+		      paralelClient2.end();
+		      console.log('area no cerrada  INSERT2  error running query', err);
+		    }
+		    else{
+		      insertNumer2--;
+		      paralelClient2.end();
+		    }
+		    if((insertNumer == 0) && (insertNumer2 == 0)){
+		      console.log("1 - Ejecutando area no cerrada");
+		      callback();
+		      client.end();
+		    }
 		  });
+		});
 	    }
 	    if((insertNumer == 0) && (insertNumer2 == 0)){
 		      console.log("1 - Ejecutando area no cerrada");
@@ -151,7 +275,7 @@ exports.test = function test(token, callback){
 		      client.end();
 		    }
 	  });    
-});
+});*/
 }
 
 
