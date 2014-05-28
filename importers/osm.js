@@ -1,5 +1,5 @@
-var  idAsigner = require('/var/www/localhost/htdocs/validator/idAsigner'),
-     pg = require("/usr/lib/node_modules/pg"),
+//   idAsigner = require('./../idAsigner'),
+var  pg = require("./../node_modules/pg"),
      exec = require('child_process').exec,
      sys = require('sys'),
      conString = "tcp://postgres:4321@localhost/validator",
@@ -80,12 +80,12 @@ exports.prepareDB = function prepareDB(token, filename, callback){
 					      }
 					      else
 					      {
-						fs.readdir('/var/www/localhost/htdocs/validator/querys', function(err, files){
+						fs.readdir('./../querys', function(err, files){
 						    var nFiles = files.length;
 						    var nReads = 0;
 						    var i;
 						    for ( i = 0; i < nFiles; i++) {
-						      var t = require('../querys/'+files[i]);
+						      var t = require('./../querys/'+files[i]);
 						      t.createTable(function(){ 
 							nReads++; 
 							if(nReads == nFiles){
@@ -105,12 +105,12 @@ exports.prepareDB = function prepareDB(token, filename, callback){
 	    }
 	    else
 	    {
-	      fs.readdir('/var/www/localhost/htdocs/validator/querys', function(err, files){
+	      fs.readdir('./querys', function(err, files){
 		  var nFiles = files.length;
 		  var nReads = 0;
 		  var i;
 		  for ( i = 0; i < nFiles; i++) {
-		    var t = require('../querys/'+files[i]);
+		    var t = require('./../querys/'+files[i]);
 		    t.createTable(function(){ 
 		      nReads++; 
 		      if(nReads == nFiles){

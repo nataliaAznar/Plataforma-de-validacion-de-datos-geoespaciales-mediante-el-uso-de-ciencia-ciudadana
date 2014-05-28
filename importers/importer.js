@@ -1,8 +1,8 @@
-var tests = require('/var/www/localhost/htdocs/validator/tests/tests'),
+var tests = require('./../tests/tests'),
     fs = require('fs');
 exports.importFile = function importFile(extension, fileToChange, token){
   
-  fs.readdir('/var/www/localhost/htdocs/validator/importers', function(err, files){
+  fs.readdir('./importers', function(err, files){
   if (err) console.log(err);
   else {
     var f = extension+'.js';
@@ -12,7 +12,7 @@ exports.importFile = function importFile(extension, fileToChange, token){
 	console.log("Error, that file doesn't exists");
     }
     else{
-      f = '/var/www/localhost/htdocs/validator/importers/' + f;
+      f = './../importers/' + f;
       var imp = require(f);
       
       imp.preanalyzeFile(token, fileToChange, function(filename){

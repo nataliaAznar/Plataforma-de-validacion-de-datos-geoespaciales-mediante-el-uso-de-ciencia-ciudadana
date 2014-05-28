@@ -1,8 +1,8 @@
 var pg = require("/usr/lib/node_modules/pg"),
     conString = "tcp://postgres:4321@localhost/validator",
-    obtenerNodo = require('/var/www/localhost/htdocs/validator/api/obtenerNodo'),
-    obtenerWay = require('/var/www/localhost/htdocs/validator/api/obtenerWay'),
-    obtenerRel = require('/var/www/localhost/htdocs/validator/api/obtenerRel');
+    obtenerNodo = require('./obtenerNodo'),
+    obtenerWay = require('./obtenerWay'),
+    obtenerRel = require('./obtenerRel');
     
 
 exports.getErrors = function getErrors(res, ids, xmin, ymin, xmax, ymax, numErrors){
