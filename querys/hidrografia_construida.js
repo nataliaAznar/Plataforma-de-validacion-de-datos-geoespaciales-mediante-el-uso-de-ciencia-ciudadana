@@ -1,6 +1,7 @@
 var pg = require("/usr/lib/node_modules/pg"),
-    obtenerId = require('/var/www/localhost/htdocs/validator/obtenerId'),
+//     obtenerId = require('/var/www/localhost/htdocs/validator/obtenerId'),
     conString = "tcp://postgres:4321@localhost/validator",
+    async = require("../node_modules/async"),
     client = new pg.Client(conString);
  
 var tableName = "error_106";
@@ -63,6 +64,124 @@ exports.createTable = function createTable(callback){
 
 
 exports.test = function test(token, callback){    
+  var clientOne, clientTwo, clientThree ;
+  async.parallel([
+    function(callbackParallel){
+        clientOne = new pg.Client(conString);
+	clientOne.connect(function(err) {
+	  if(err) {
+	    callbackParallel();
+	    console.log('could not connect to postgres', err);
+	  }
+	  else{
+	    clientOne.query("SELECT tags, osm_id, way FROM " + token + "_line WHERE ((tags -> 'landuse') = 'reservoir') AND ((tags->'FIXME')  is NOT NULL) ;", function(err, result) {
+	    if(err) {
+	      callbackParallel();
+	      console.log('hidrografia construida  SELECT  error running query', err);
+	    }
+	    else{
+	      var type = new Array("way");
+	      var ids = new Array();
+	      async.each(result.rows, function( row, callbackEach) {
+		  ids[0] = row.osm_id;
+		  var tags = row.tags;
+		  clientOne.query("INSERT INTO error_106 (geom, tags, id_osm, type_osm) VALUES (ARRAY[st_transform('"+row.way+"', 4326)], ARRAY['"+tags.replace(/'/g, "''")+"'::hstore], '{"+ids[0]+"}', ARRAY['"+type[0]+"']);", function(err, result) {
+		    if(err) {
+		      console.log("INSERT INTO error_106 (geom, \"idError\", tags, id_osm, type_osm) VALUES (ARRAY[st_transform('"+row.way+"', 4326)], ARRAY['"+tags.replace(/'/g, "''")+"'::hstore], '{"+ids[0]+"}', ARRAY['"+type[0]+"']);");
+		      console.log('hidrografia construida  INSERT  error running query', err);
+		    }
+		    callbackEach();
+		  });
+	      }, function(err){
+		   callbackParallel();
+	      });
+	    }
+	    });
+	  }
+	});
+	 },
+    function(callbackParallel){
+        clientTwo = new pg.Client(conString);
+	clientTwo.connect(function(err) {
+	  if(err) {
+	    callbackParallel();
+	    return console.error('could not connect to postgres', err);
+	  }
+	  else{
+	     clientTwo.query("SELECT tags, osm_id, way FROM " + token + "_polygon WHERE ((tags -> 'landuse') = 'reservoir') AND ((tags->'FIXME')  IS NOT NULL) ;", function(err, result) {
+		if(err) {
+		  callbackParallel();
+		  console.log('hidrografia construida  SELECT2  error running query', err);
+		}
+		else{
+		  var type = new Array("way");
+		  var ids = new Array();
+		  async.each(result.rows, function( row, callbackEach) {
+		    ids[0] = row.osm_id;
+		    var tags = row.tags;
+		    clientTwo.query("INSERT INTO error_106 (geom, tags, id_osm, type_osm) VALUES (ARRAY[st_transform('"+row.way+"', 4326)], ARRAY['"+tags.replace(/'/g, "''")+"'::hstore], '{"+ids[0]+"}', ARRAY['"+type[0]+"']);", function(err, result) {
+		      if(err) {
+			console.log("INSERT INTO error_106 (geom, tags, id_osm, type_osm) VALUES (ARRAY[st_transform('"+row.way+"', 4326)], ARRAY['"+tags.replace(/'/g, "''")+"'::hstore], '{"+ids[0]+"}', ARRAY['"+type[0]+"']);");
+			console.log('hidrografia construida  INSERT2  error running query', err);
+		      }  
+		      callbackEach();
+		    });
+		  }, function(err){
+		      callbackParallel();
+		  });
+		}
+	      });
+	  }
+	});
+    },
+    function(callbackParallel){
+        clientThree = new pg.Client(conString);
+	clientThree.connect(function(err) {
+	  if(err) {
+	    callbackParallel();
+	    return console.error('could not connect to postgres', err);
+	  }
+	  else{
+	    clientThree.query("SELECT osm_id, way FROM " + token + "_point WHERE ((tags -> 'landuse ') = 'reservoir') AND ((tags->'FIXME')  IS NOT NULL) ;", function(err, result) {
+	      if(err) {
+		callbackParallel();
+		console.log('hidrografia construida  SELECT3  error running query', err);
+	      }
+	      else{
+		var type = new Array("node");
+		var ids = new Array();
+		 async.each(result.rows, function( row, callbackEach) {
+		    ids[0] = row.osm_id;
+		    var tags = row.tags;
+		    clientThree.query("INSERT INTO error_106 (geom, tags, id_osm, type_osm) VALUES (ARRAY[st_transform('"+row.way+"', 4326)], ARRAY['"+tags.replace(/'/g, "''")+"'::hstore], '{"+ids[0]+"}', ARRAY['"+type[0]+"']);", function(err, result) {
+		      if(err) {
+			console.log("INSERT INTO error_106 (geom, tags, id_osm, type_osm) VALUES (ARRAY[st_transform('"+row.way+"', 4326)], ARRAY['"+tags.replace(/'/g, "''")+"'::hstore], '{"+ids[0]+"}', ARRAY['"+type[0]+"']);");
+			console.log('hidrografia construida  INSERT3  error running query', err);
+		      }  
+		      callbackEach();
+		  });
+		   
+		  }, function(err){
+		      callbackParallel();
+		  });
+	      }
+	    });
+	  }
+	});
+   }
+  ],
+
+  function(err, results){
+    console.log("7 - Ejecutando hidrografia construida");
+    clientTwo.end();
+    clientOne.end();
+    clientThree.end();
+    callback();
+  });
+  /*
+  
+  
+  
     client.connect(function(err) {
 	  var insertNumer;
 	  var insertNumer2;
@@ -179,7 +298,7 @@ exports.test = function test(token, callback){
 		      client.end();
 		    }
 	  });
-	}); 
+	}); */
 }
 
 exports.getSolution = function getSolution(idError, callback){

@@ -1,6 +1,7 @@
 var pg = require("/usr/lib/node_modules/pg"),
-    obtenerId = require('/var/www/localhost/htdocs/validator/obtenerId'),
+//     obtenerId = require('/var/www/localhost/htdocs/validator/obtenerId'),
     conString = "tcp://postgres:4321@localhost/validator",
+     async = require("../node_modules/async"),
     client = new pg.Client(conString);
 
 var tableName = "error_124";
@@ -60,66 +61,115 @@ exports.createTable = function createTable(callback){
 }
 
 
-exports.test = function test(token, callback){    
-  client.connect(function(err) {
-	  var insertNumer;
-	  if(err) {
+exports.test = function test(token, callback){   
+  var clientOne = new pg.Client(conString);
+  clientOne.connect(function(err) {
+    if(err) {
+      callback();
+      console.log('could not connect to postgres', err);
+    }
+    else{
+      clientOne.query("SELECT p.* from " + token + "_polygon AS p, (SELECT ST_BUFFER( ST_UNION(ST_TRANSFORM(way, 4326 ))::geography, 10 ) AS geom FROM " + token + "_line\
+		    WHERE (tags->'highway') IS NOT NULL) AS CARRETERAS WHERE p.tags ? 'building' AND NOT ST_TRANSFORM(p.way, 4326) && CARRETERAS.geom;", function(err, result) {
+	  if(err){
+	    console.log("SELECT p.* from " + token + "_polygon AS p,\
+		(\
+		SELECT ST_BUFFER( ST_UNION(ST_TRANSFORM(way, 4326 ))::geography, 10 ) AS geom \
+		  FROM " + token + "_line\
+		  WHERE (tags->'highway') IS NOT NULL\
+		) AS CARRETERAS\
+		WHERE p.tags ? 'building' AND NOT ST_TRANSFORM(p.way, 4326) && CARRETERAS.geom;");
+	    console.log("error ejecutando casas sin carretera " + err);
 	    callback();
-	    return console.error('could not connect to postgres', err);
 	  }
-	  client.query("SELECT p.* from " + token + "_polygon AS p,\
-		  (\
-		  SELECT ST_BUFFER( ST_UNION(ST_TRANSFORM(way, 4326 ))::geography, 10 ) AS geom \
-		    FROM " + token + "_line\
-		    WHERE (tags->'highway') IS NOT NULL\
-		  ) AS CARRETERAS\
-		  WHERE p.tags ? 'building' AND NOT ST_TRANSFORM(p.way, 4326) && CARRETERAS.geom;", function(err, result) {
-	    if(err){
-	      console.log("SELECT p.* from " + token + "_polygon AS p,\
-		  (\
-		  SELECT ST_BUFFER( ST_UNION(ST_TRANSFORM(way, 4326 ))::geography, 10 ) AS geom \
-		    FROM " + token + "_line\
-		    WHERE (tags->'highway') IS NOT NULL\
-		  ) AS CARRETERAS\
-		  WHERE p.tags ? 'building' AND NOT ST_TRANSFORM(p.way, 4326) && CARRETERAS.geom;");
-	      console.log("error ejecutando casas sin carretera " + err);
-	      client.end();
-	    }
-	   var ressultCount = result.rows.length;
-	      insertNumer = ((result.rows.length));
-	      var type = new Array("way");
-	      var ids = new Array();
-	      var geom= new Array();
-	      var tags = new Array();
-	      var resultado = result.rows;
-	      for(var i = 0; i < ressultCount; i++){
-		 ids[0] = resultado[i].osm_id;
-		  geom[0] = resultado[i].way;
-		  tags[0] = resultado[i].tags.replace(/'/g, "''");
-		  client.query("INSERT INTO error_124 (geom, tags, id_osm, type_osm) VALUES (ARRAY[ST_Transform( '"+ geom[0]+"', 4326)], ARRAY['"+tags[0]+"'::hstore], '{"+ids[0]+"}',ARRAY['"+type[0]+"'] );", function(err, result) {
-		    if(err) {
-		      console.log("INSERT INTO error_124 (geom, tags, id_osm, type_osm) VALUES (ARRAY[ST_Transform( '"+ geom[0]+"', 4326)], ARRAY['"+tags.replace(/'/g, "''")+"'::hstore], '{"+ids[0]+"}',ARRAY['"+type[0]+"'] );");
-		      insertNumer--;
-		      return console.error('deportes  INSERT  error running query', err);
-		    }  
-		    else{
-		      insertNumer--;
-		    }
-		    if(insertNumer == 0){
-		      console.log("23 - Ejecutando casas sin carreteras");
-		      callback();
-		      client.end();
-		    }
+	  else{
+	    var type = new Array("way");
+	    var ids = new Array();
+	    var geom= new Array();
+	    var tags = new Array();
+	    async.each(result.rows, function( row, callbackEach) {
+		ids[0] = row.osm_id;
+		geom[0] = row.way;
+		tags[0] = row.tags.replace(/'/g, "''");
+		clientOne.query("INSERT INTO error_124 (geom, tags, id_osm, type_osm) VALUES (ARRAY[ST_Transform( '"+ geom[0]+"', 4326)], ARRAY['"+tags[0]+"'::hstore], '{"+ids[0]+"}',ARRAY['"+type[0]+"'] );", function(err, result) {
+		  if(err) {
+		    console.log("INSERT INTO error_124 (geom, tags, id_osm, type_osm) VALUES (ARRAY[ST_Transform( '"+ geom[0]+"', 4326)], ARRAY['"+tags.replace(/'/g, "''")+"'::hstore], '{"+ids[0]+"}',ARRAY['"+type[0]+"'] );");
+		    console.log('deportes  INSERT  error running query', err);
+		  }  
+		  callbackEach();
 		});
-	      }
-	      if(insertNumer == 0){
-		      console.log("23 - Ejecutando casas sin carreteras");
-		      callback();
-		      client.end();
-		    }
-	  });
-	  
-  }); 
+	      
+	    }, function(err){
+	        console.log("23 - Ejecutando casas sin carreteras");
+		callback();
+		clientOne.end();
+	    });
+	  }
+	});
+    }
+  });
+  
+ 
+  
+//   client.connect(function(err) {
+// 	  var insertNumer;
+// 	  if(err) {
+// 	    callback();
+// 	    return console.error('could not connect to postgres', err);
+// 	  }
+// 	  client.query("SELECT p.* from " + token + "_polygon AS p,\
+// 		  (\
+// 		  SELECT ST_BUFFER( ST_UNION(ST_TRANSFORM(way, 4326 ))::geography, 10 ) AS geom \
+// 		    FROM " + token + "_line\
+// 		    WHERE (tags->'highway') IS NOT NULL\
+// 		  ) AS CARRETERAS\
+// 		  WHERE p.tags ? 'building' AND NOT ST_TRANSFORM(p.way, 4326) && CARRETERAS.geom;", function(err, result) {
+// 	    if(err){
+// 	      console.log("SELECT p.* from " + token + "_polygon AS p,\
+// 		  (\
+// 		  SELECT ST_BUFFER( ST_UNION(ST_TRANSFORM(way, 4326 ))::geography, 10 ) AS geom \
+// 		    FROM " + token + "_line\
+// 		    WHERE (tags->'highway') IS NOT NULL\
+// 		  ) AS CARRETERAS\
+// 		  WHERE p.tags ? 'building' AND NOT ST_TRANSFORM(p.way, 4326) && CARRETERAS.geom;");
+// 	      console.log("error ejecutando casas sin carretera " + err);
+// 	      client.end();
+// 	    }
+// 	   var ressultCount = result.rows.length;
+// 	      insertNumer = ((result.rows.length));
+// 	      var type = new Array("way");
+// 	      var ids = new Array();
+// 	      var geom= new Array();
+// 	      var tags = new Array();
+// 	      var resultado = result.rows;
+// 	      for(var i = 0; i < ressultCount; i++){
+// 		 ids[0] = resultado[i].osm_id;
+// 		  geom[0] = resultado[i].way;
+// 		  tags[0] = resultado[i].tags.replace(/'/g, "''");
+// 		  client.query("INSERT INTO error_124 (geom, tags, id_osm, type_osm) VALUES (ARRAY[ST_Transform( '"+ geom[0]+"', 4326)], ARRAY['"+tags[0]+"'::hstore], '{"+ids[0]+"}',ARRAY['"+type[0]+"'] );", function(err, result) {
+// 		    if(err) {
+// 		      console.log("INSERT INTO error_124 (geom, tags, id_osm, type_osm) VALUES (ARRAY[ST_Transform( '"+ geom[0]+"', 4326)], ARRAY['"+tags.replace(/'/g, "''")+"'::hstore], '{"+ids[0]+"}',ARRAY['"+type[0]+"'] );");
+// 		      insertNumer--;
+// 		      return console.error('deportes  INSERT  error running query', err);
+// 		    }  
+// 		    else{
+// 		      insertNumer--;
+// 		    }
+// 		    if(insertNumer == 0){
+// 		      console.log("23 - Ejecutando casas sin carreteras");
+// 		      callback();
+// 		      client.end();
+// 		    }
+// 		});
+// 	      }
+// 	      if(insertNumer == 0){
+// 		      console.log("23 - Ejecutando casas sin carreteras");
+// 		      callback();
+// 		      client.end();
+// 		    }
+// 	  });
+// 	  
+//   }); 
 } 
 
 

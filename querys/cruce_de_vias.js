@@ -1,6 +1,7 @@
 var pg = require("/usr/lib/node_modules/pg"),
-    obtenerId = require('/var/www/localhost/htdocs/validator/obtenerId'),
+//     obtenerId = require('/var/www/localhost/htdocs/validator/obtenerId'),
     conString = "tcp://postgres:4321@localhost/validator",
+     async = require("../node_modules/async"),
     client = new pg.Client(conString);
 
     
@@ -62,14 +63,15 @@ exports.createTable = function createTable(callback){
       });
 }
 
-exports.test = function test(token, callback){        
-    client.connect(function(err) {
-	  var insertNumer;
-	  if(err) {
-	    callback();
-	    return console.error('could not connect to postgres', err);
-	  }
-	  var query = "SELECT l1.osm_id as id1, l2.osm_id as id2, ST_ASTEXT(l1.way) as way1, ST_ASTEXT(l2.way) as way2, l1.tags AS tags1, l2.tags AS tags2, ST_ASTEXT(ST_INTERSECTION( l1.way, l2.way)) AS way from " + token + "_line AS l1, " + token + "_line AS l2\
+exports.test = function test(token, callback){ 
+  var clientOne = new pg.Client(conString);
+  clientOne.connect(function(err) {
+    if(err) {
+      callback();
+      console.log('could not connect to postgres', err);
+    }
+    else{
+       var query = "SELECT l1.osm_id as id1, l2.osm_id as id2, ST_ASTEXT(l1.way) as way1, ST_ASTEXT(l2.way) as way2, l1.tags AS tags1, l2.tags AS tags2, ST_ASTEXT(ST_INTERSECTION( l1.way, l2.way)) AS way from " + token + "_line AS l1, " + token + "_line AS l2\
 		  WHERE l1.osm_id <> l2.osm_id AND l1.tags ? 'highway' AND l2.tags ? 'highway' AND ST_INTERSECTS( l1.way, l2.way ) AND NOT l1.tags ? 'bridge' AND NOT l2.tags ? 'bridge' AND \
 		  NOT l1.tags ? 'tunnel' AND NOT l2.tags ? 'tunnel' AND\
 		  ( NOT (l1.tags->'layer') = '-1' OR NOT (l2.tags->'layer') = '-1') AND \
@@ -77,50 +79,104 @@ exports.test = function test(token, callback){
 		  (SELECT (ST_DUMPPOINTS(l2.way)).geom) AS points2\
 		  WHERE points1.geom = points2.geom)\
 		  ;"
-	    client.query( query, function(err, result) {
-	      if(err) {
-		callback();
-		console.log(query);
-		return console.error('cruce de vias  SELECT  error running query', err);
-	      }
-	      var ressultCount = result.rows.length;
-	      insertNumer = ((result.rows.length));
-	      var type = new Array("way", "way");
-	      var ids = new Array();
-	      var geom= new Array();
-	      var tags = new Array();
-	      var resultado = result.rows;
-	      for(var i = 0; i < ressultCount; i++){
-		  ids[0] = resultado[i].id1;
-		  ids[1] = resultado[i].id2;
-		  geom[0] = resultado[i].way1;
-		  geom[1] = resultado[i].way2;
-		  geom[3] = resultado[i].way;
-		  tags[0] = resultado[i].tags1.replace(/'/g, "''");
-		  tags[1] = resultado[i].tags2.replace(/'/g, "''");			  
-		  client.query("INSERT INTO error_101 (geom, tags, id_osm, type_osm, focus) VALUES (ARRAY[ST_Transform( ST_SetSRID(ST_GeomFromText('"+ geom[0]+"'),900913), 4326), ST_Transform(ST_SetSRID(ST_GeomFromText('"+geom[1]+"'),900913), 4326)], ARRAY['"+tags[0]+"'::hstore, '"+tags[1]+"'::hstore], '{"+ids[0]+", "+ids[1]+"}',ARRAY['"+type[0]+"', '"+type[1]+"'], ST_Transform( ST_SetSRID(ST_GeomFromText('"+ geom[3]+"'),900913), 4326) );", function(err, result) {
-		    if(err) {
-		      console.log("INSERT INTO error_101 VALUES (ARRAY[ST_Transform( ST_SetSRID(ST_GeomFromText('"+ geom[0]+"'),900913), 4326), ST_Transform(ST_SetSRID(ST_GeomFromText('"+geom[1]+"'),900913), 4326)], ARRAY['"+tags[0]+"'::hstore, '"+tags[1]+"'::hstore], '{"+ids[0]+", "+ids[1]+"}',ARRAY['"+type[0]+"', '"+type[1]+"'], ST_Transform( ST_SetSRID(ST_GeomFromText('"+ geom[3]+"'),900913), 4326) );");
-		      insertNumer--;
-		      return console.error('cruce de vias  INSERT  error running query', err);
-		    }  
-		    else{
-		      insertNumer--;
-		    }
-		    if(insertNumer == 0){
-		      console.log("2 - Ejecutando cruce de vias");
-		      callback();
-		      client.end();
-		    }
-		});
-	      }
-	      if(insertNumer == 0){
-		      console.log("2 - Ejecutando cruce de vias");
-		      callback();
-		      client.end();
-		    }
-	 });
-    });
+      clientOne.query( query, function(err, result) {
+	if(err) {
+	  callback();
+	  console.log(query);
+	  console.log('cruce de vias  SELECT  error running query', err);
+	}
+	else{
+	  var type = new Array("way", "way");
+	  var ids = new Array();
+	  var geom= new Array();
+	  var tags = new Array();
+	   async.each(result.rows, function( row, callbackEach) {
+	      ids[0] = row.id1;
+	      ids[1] = row.id2;
+	      geom[0] = row.way1;
+	      geom[1] = row.way2;
+	      geom[3] = row.way;
+	      tags[0] = row.tags1.replace(/'/g, "''");
+	      tags[1] = row.tags2.replace(/'/g, "''");			  
+	      clientOne.query("INSERT INTO error_101 (geom, tags, id_osm, type_osm, focus) VALUES (ARRAY[ST_Transform( ST_SetSRID(ST_GeomFromText('"+ geom[0]+"'),900913), 4326), ST_Transform(ST_SetSRID(ST_GeomFromText('"+geom[1]+"'),900913), 4326)], ARRAY['"+tags[0]+"'::hstore, '"+tags[1]+"'::hstore], '{"+ids[0]+", "+ids[1]+"}',ARRAY['"+type[0]+"', '"+type[1]+"'], ST_Transform( ST_SetSRID(ST_GeomFromText('"+ geom[3]+"'),900913), 4326) );", function(err, result) {
+		if(err) {
+		  console.log("INSERT INTO error_101 VALUES (ARRAY[ST_Transform( ST_SetSRID(ST_GeomFromText('"+ geom[0]+"'),900913), 4326), ST_Transform(ST_SetSRID(ST_GeomFromText('"+geom[1]+"'),900913), 4326)], ARRAY['"+tags[0]+"'::hstore, '"+tags[1]+"'::hstore], '{"+ids[0]+", "+ids[1]+"}',ARRAY['"+type[0]+"', '"+type[1]+"'], ST_Transform( ST_SetSRID(ST_GeomFromText('"+ geom[3]+"'),900913), 4326) );");
+		  console.log('cruce de vias  INSERT  error running query', err);
+		}  
+		callbackEach();
+	    });     
+	  }, function(err){
+	       console.log("2 - Ejecutando cruce de vias");
+	      clientOne.end()
+	      callback();
+	  });
+	}
+      });
+    }
+  });
+  
+  
+  
+  
+  
+//     client.connect(function(err) {
+// 	  var insertNumer;
+// 	  if(err) {
+// 	    callback();
+// 	    return console.error('could not connect to postgres', err);
+// 	  }
+// 	  var query = "SELECT l1.osm_id as id1, l2.osm_id as id2, ST_ASTEXT(l1.way) as way1, ST_ASTEXT(l2.way) as way2, l1.tags AS tags1, l2.tags AS tags2, ST_ASTEXT(ST_INTERSECTION( l1.way, l2.way)) AS way from " + token + "_line AS l1, " + token + "_line AS l2\
+// 		  WHERE l1.osm_id <> l2.osm_id AND l1.tags ? 'highway' AND l2.tags ? 'highway' AND ST_INTERSECTS( l1.way, l2.way ) AND NOT l1.tags ? 'bridge' AND NOT l2.tags ? 'bridge' AND \
+// 		  NOT l1.tags ? 'tunnel' AND NOT l2.tags ? 'tunnel' AND\
+// 		  ( NOT (l1.tags->'layer') = '-1' OR NOT (l2.tags->'layer') = '-1') AND \
+// 		  ( SELECT count(*)=0 FROM (SELECT (ST_DUMPPOINTS(l1.way)).geom) AS points1,\
+// 		  (SELECT (ST_DUMPPOINTS(l2.way)).geom) AS points2\
+// 		  WHERE points1.geom = points2.geom)\
+// 		  ;"
+// 	    client.query( query, function(err, result) {
+// 	      if(err) {
+// 		callback();
+// 		console.log(query);
+// 		return console.error('cruce de vias  SELECT  error running query', err);
+// 	      }
+// 	      var ressultCount = result.rows.length;
+// 	      insertNumer = ((result.rows.length));
+// 	      var type = new Array("way", "way");
+// 	      var ids = new Array();
+// 	      var geom= new Array();
+// 	      var tags = new Array();
+// 	      var resultado = result.rows;
+// 	      for(var i = 0; i < ressultCount; i++){
+// 		  ids[0] = resultado[i].id1;
+// 		  ids[1] = resultado[i].id2;
+// 		  geom[0] = resultado[i].way1;
+// 		  geom[1] = resultado[i].way2;
+// 		  geom[3] = resultado[i].way;
+// 		  tags[0] = resultado[i].tags1.replace(/'/g, "''");
+// 		  tags[1] = resultado[i].tags2.replace(/'/g, "''");			  
+// 		  client.query("INSERT INTO error_101 (geom, tags, id_osm, type_osm, focus) VALUES (ARRAY[ST_Transform( ST_SetSRID(ST_GeomFromText('"+ geom[0]+"'),900913), 4326), ST_Transform(ST_SetSRID(ST_GeomFromText('"+geom[1]+"'),900913), 4326)], ARRAY['"+tags[0]+"'::hstore, '"+tags[1]+"'::hstore], '{"+ids[0]+", "+ids[1]+"}',ARRAY['"+type[0]+"', '"+type[1]+"'], ST_Transform( ST_SetSRID(ST_GeomFromText('"+ geom[3]+"'),900913), 4326) );", function(err, result) {
+// 		    if(err) {
+// 		      console.log("INSERT INTO error_101 VALUES (ARRAY[ST_Transform( ST_SetSRID(ST_GeomFromText('"+ geom[0]+"'),900913), 4326), ST_Transform(ST_SetSRID(ST_GeomFromText('"+geom[1]+"'),900913), 4326)], ARRAY['"+tags[0]+"'::hstore, '"+tags[1]+"'::hstore], '{"+ids[0]+", "+ids[1]+"}',ARRAY['"+type[0]+"', '"+type[1]+"'], ST_Transform( ST_SetSRID(ST_GeomFromText('"+ geom[3]+"'),900913), 4326) );");
+// 		      insertNumer--;
+// 		      return console.error('cruce de vias  INSERT  error running query', err);
+// 		    }  
+// 		    else{
+// 		      insertNumer--;
+// 		    }
+// 		    if(insertNumer == 0){
+// 		      console.log("2 - Ejecutando cruce de vias");
+// 		      callback();
+// 		      client.end();
+// 		    }
+// 		});
+// 	      }
+// 	      if(insertNumer == 0){
+// 		      console.log("2 - Ejecutando cruce de vias");
+// 		      callback();
+// 		      client.end();
+// 		    }
+// 	 });
+//     });
 }
 
 

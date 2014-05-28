@@ -1,5 +1,5 @@
 var pg = require("/usr/lib/node_modules/pg"),
-    obtenerId = require('/var/www/localhost/htdocs/validator/obtenerId'),
+//     obtenerId = require('/var/www/localhost/htdocs/validator/obtenerId'),
     conString = "tcp://postgres:4321@localhost/validator",
     async = require("../node_modules/async"),
     client = new pg.Client(conString);
@@ -67,7 +67,7 @@ exports.createTable = function createTable(callback){
 
 
 exports.test = function test(token, callback){
-var clientOne, clientTwo ;
+  var clientOne, clientTwo ;
   async.parallel([
     function(callbackParallel){
         clientOne = new pg.Client(conString);
@@ -78,38 +78,29 @@ var clientOne, clientTwo ;
 	  }
 	  else{
 	     clientOne.query("SELECT osm_id, way, tags, ST_AsText(ST_MakeLine(ST_EndPoint(way), ST_StartPoint(way))) AS way1  FROM " + token + "_polygon WHERE ST_IsClosed(way) = false;", function(err, result) {
-	    if(err) {
-	      callbackParallel();
-	      console.log("SELECT osm_id, way, tags FROM " + token + "_polygon WHERE ST_IsClosed(way) = false;");
-	      return console.error('area no cerrada  SELECT  error running query', err);
-	    }
-	      var types = new Array("way");
-	      var ids = new Array();
-	      async.each(result.rows, function( row, callbackEach) {
-		 var eachClient = new pg.Client(conString);
-		  ids[0] = row.osm_id;
-		  var tags = row.tags;
-		  var query = "INSERT INTO error_100 (geom, tags, id_osm, type_osm, focus) VALUES (ARRAY[ st_transform('"+row.way+"', 4326)], ARRAY['"+tags.replace(/'/g, "''")+"'::hstore], '{"+ids[0]+"}', ARRAY['"+types[0]+"'], st_transform(ST_SetSRID(ST_GeomFromText('"+ row.way1+"'),900913), 4326) );";
-		   eachClient.connect(function(err){
-		      if(err) {
-			  callbackEach(err);
-			  console.log('could not connect to postgres', err);
-			}
-			else{
-			  eachClient.query(query, function(err, result) {
-			    if(err) {
-			      console.log(query);
-			      console.error('area no cerrada  INSERT  error running query', err);
-			    }  
-			    eachClient.end();
-			    callbackEach();
-			  });
-			}
-		 });
-		  
-	      }, function(err){
-		callbackParallel();
-	    });
+		  if(err) {
+		    callbackParallel();
+		    console.log("SELECT osm_id, way, tags FROM " + token + "_polygon WHERE ST_IsClosed(way) = false;");
+		    console.log('area no cerrada  SELECT  error running query', err);
+		  }
+		  else{
+		    var types = new Array("way");
+		    var ids = new Array();
+		    async.each(result.rows, function( row, callbackEach) {
+			ids[0] = row.osm_id;
+			var tags = row.tags;
+			var query = "INSERT INTO error_100 (geom, tags, id_osm, type_osm, focus) VALUES (ARRAY[ st_transform('"+row.way+"', 4326)], ARRAY['"+tags.replace(/'/g, "''")+"'::hstore], '{"+ids[0]+"}', ARRAY['"+types[0]+"'], st_transform(ST_SetSRID(ST_GeomFromText('"+ row.way1+"'),900913), 4326) );";
+			clientOne.query(query, function(err, result) {
+			  if(err) {
+			    console.log(query);
+			    console.log('area no cerrada  INSERT  error running query', err);
+			  }
+			  callbackEach();
+			});
+		    }, function(err){
+			callbackParallel();
+		      });
+		  }
 	     });
 	  }
 	});
@@ -132,25 +123,15 @@ var clientOne, clientTwo ;
 		  var typess = new Array("way");
 		  var idss = new Array(); 
 		  async.each(result.rows, function( row, callbackEach) {
-		    var eachClientTwo = new pg.Client(conString);
 		    idss[0] = row.osm_id;
 		    var tags = row.tags;
 		    var query = "INSERT INTO error_100 (geom, tags, id_osm, type_osm, focus) VALUES ( ARRAY[st_transform('"+row.way+"', 4326)], ARRAY['"+tags.replace(/'/g, "''")+"'::hstore], '{"+idss[0]+"}', ARRAY['"+typess[0]+"'], st_transform(ST_SetSRID(ST_GeomFromText('"+ row.way1+"'),900913), 4326));";
-		    eachClientTwo.connect(function(err){
-			if(err) {
-			  callbackEach();
-			  console.log('could not connect to postgres', err);
-			}
-			else{
-			  eachClientTwo.query(query, function(err, result) {
-			    if(err) {
-			      console.log(query);
-			      console.log('area no cerrada  INSERT2  error running query', err);
-			    }
-			    eachClientTwo.end();
-			    callbackEach();
-			  });
-			}
+		    clientTwo.query(query, function(err, result) {
+		      if(err) {
+			console.log(query);
+			console.log('area no cerrada  INSERT2  error running query', err);
+		      }
+		      callbackEach();
 		    });
 		  }, function(err){
 		      callbackParallel();

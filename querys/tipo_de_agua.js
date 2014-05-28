@@ -1,6 +1,7 @@
 var pg = require("/usr/lib/node_modules/pg"),
-    obtenerId = require('/var/www/localhost/htdocs/validator/obtenerId'),
+//     obtenerId = require('/var/www/localhost/htdocs/validator/obtenerId'),
     conString = "tcp://postgres:4321@localhost/validator",
+     async = require("../node_modules/async"),
     client = new pg.Client(conString);
 
 var tableName = "error_118";
@@ -57,7 +58,94 @@ exports.createTable = function createTable(callback){
 }
 
 
-exports.test=function test(token, callback){    
+exports.test=function test(token, callback){
+  var clientOne, clientTwo ;
+   async.parallel([
+    function(callbackParallel){
+      clientOne = new pg.Client(conString);
+      clientOne.connect(function(err) {
+	  if(err) {
+	    callbackParallel();
+	    console.log('could not connect to postgres', err);
+	  }
+	  else{
+	    clientOne.query("SELECT osm_id, way, tags FROM " + token + "_line WHERE ((tags->'fixme') like '% tipo de agua %');", function(err, result) {
+		if(err) {
+		  callbackParallel();
+		  console.log("SELECT osm_id, way, tags FROM " + token + "_line WHERE ((tags->'fixme') like '% tipo de agua %');");
+		  console.log('tipo de agua  SELECT  error running query', err);
+		}
+		else{
+		  var type = new Array("way");
+		  var ids = new Array();
+		  async.each(result.rows, function( row, callbackEach) {
+		    ids[0] = row.osm_id;
+		    var tags = row.tags;
+		    clientOne.query("INSERT INTO error_118 (geom, tags, id_osm, type_osm) VALUES ( ARRAY[st_transform('"+row.way+"', 4326)], ARRAY['"+tags.replace(/'/g, "''")+"'::hstore], '{ "+ids[0]+"}',ARRAY['"+type[0]+"']);", function(err, result) {
+			if(err) {
+			  console.log("INSERT INTO error_118 (geom, tags, id_osm, type_osm) VALUES ( ARRAY[st_transform('"+row.way+"', 4326)], ARRAY['"+tags.replace(/'/g, "''")+"'::hstore], '{ "+ids[0]+"}',ARRAY['"+type[0]+"']);");
+			  console.log('tipo de agua  INSERT  error running query', err);
+			}  
+			callbackEach();
+		      });
+		    
+		  }, function(err){
+		    callbackParallel();
+		  });
+		}
+	    });
+	  }
+      });
+    },
+    function(callbackParallel){
+      clientTwo = new pg.Client(conString);
+      clientTwo.connect(function(err) {
+	  if(err) {
+	    callbackParallel();
+	    return console.error('could not connect to postgres', err);
+	  }
+	  else{
+	    clientTwo.query("SELECT osm_id, way, tags FROM " + token + "_polygon WHERE ((tags->'fixme') like '% tipo de agua %');", function(err, result) {
+		if(err) {
+		  console.log("SELECT osm_id, way, tags FROM " + token + "_polygon WHERE ((tags->'fixme') like '% tipo de agua %');");
+		  callbackParallel();
+		  console.log('tipo de agua  SELECT2  error running query', err);
+		}
+		else{
+		   var type = new Array("way");
+		   var ids = new Array();
+		    async.each(result.rows, function( row, callbackEach) {
+			ids[0] = row.osm_id;
+			var tags = row.tags;
+			client.query("INSERT INTO error_118 (geom, tags, id_osm, type_osm) VALUES ( ARRAY[st_transform('"+row.way+"', 4326)], ARRAY['"+tags.replace(/'/g, "''")+"'::hstore], '{ "+ids[0]+"}',ARRAY['"+type[0]+"']);", function(err, result) {
+			  if(err) {
+			    console.log("INSERT INTO error_118 (geom, tags, id_osm, type_osm) VALUES ( ARRAY[st_transform('"+row.way+"', 4326)], ARRAY['"+tags.replace(/'/g, "''")+"'::hstore], '{ "+ids[0]+"}',ARRAY['"+type[0]+"']);");
+			     console.log('tipo de agua  INSERT2  error running query', err);
+			  }
+			  callbackEach();
+			});
+		    }, function(err){
+		      callbackParallel();
+		    });
+		}
+	    });
+	  }
+      });
+   }
+  ],
+  function(err, results){
+    console.log("19 - Ejecutando tipo de agua");
+    clientTwo.end();
+    clientOne.end();
+    callback();
+  });
+   
+   
+   
+   
+ /* 
+  
+  
   client.connect(function(err) {
     var insertNumer;
     var insertNumer2;
@@ -138,7 +226,7 @@ exports.test=function test(token, callback){
 		    client.end();
 		  }
 	  });
-	}); 
+	}); */
 }
 
 

@@ -1,6 +1,7 @@
- var pg=require("/usr/lib/node_modules/pg"),
-    obtenerId = require('/var/www/localhost/htdocs/validator/obtenerId'),
+var pg=require("/usr/lib/node_modules/pg"),
+//     obtenerId = require('/var/www/localhost/htdocs/validator/obtenerId'),
     conString = "tcp://postgres:4321@localhost/validator",
+    async = require("../node_modules/async"),
     client = new pg.Client(conString);
     
 var tableName = "error_123";

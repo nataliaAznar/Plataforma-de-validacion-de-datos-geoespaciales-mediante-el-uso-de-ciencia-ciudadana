@@ -1,6 +1,7 @@
 var pg = require("/usr/lib/node_modules/pg"),
-    obtenerId = require('/var/www/localhost/htdocs/validator/obtenerId'),
+//     obtenerId = require('/var/www/localhost/htdocs/validator/obtenerId'),
     conString = "tcp://postgres:4321@localhost/validator",
+     async = require("../node_modules/async"),
     client = new pg.Client(conString);
 
     
@@ -63,14 +64,15 @@ exports.createTable = function createTable(callback){
 }
 
 
-exports.test=function test(token, callback){    
-    client.connect(function(err) {
-	  var insertNumer;  
-	  if(err) {
-	    callback();
-	    return console.error('could not connect to postgres', err);
-	  }
-	  client.query("SELECT p1.tags AS tags1, p2.tags AS tags2, p1.osm_id AS id1, p2.osm_id AS id2, st_astext(p1.way) AS way1, st_astext(p2.way) AS way2, ST_AsText(ST_Intersection(p1.way, p2.way)) AS way \
+exports.test=function test(token, callback){  
+  var clientOne = new pg.Client(conString);
+  clientOne.connect(function(err) {
+    if(err) {
+      callback();
+      console.log('could not connect to postgres', err);
+    }
+    else{
+       clientOne.query("SELECT p1.tags AS tags1, p2.tags AS tags2, p1.osm_id AS id1, p2.osm_id AS id2, st_astext(p1.way) AS way1, st_astext(p2.way) AS way2, ST_AsText(ST_Intersection(p1.way, p2.way)) AS way \
 	  FROM " + token + "_polygon p1, " + token + "_polygon p2 \
 	  WHERE p1.building IS NOT NULL AND p2.building IS NOT NULL AND ST_Intersects(p1.way,p2.way ) AND p1.osm_id != p2.osm_id AND NOT ST_Touches(p1.way, p2.way) AND \
 	  (SELECT count(*)=0 FROM (SELECT (ST_DUMPPOINTS(p1.way)).geom ) AS points1, (SELECT (ST_DUMPPOINTS(p2.way)).geom ) AS points2 WHERE points1.geom = points2.geom) \
@@ -83,46 +85,102 @@ exports.test=function test(token, callback){
 	  WHERE p1.building IS NOT NULL AND p2.building IS NOT NULL AND ST_Intersects(p1.way,p2.way ) AND p1.osm_id != p2.osm_id AND NOT ST_Touches(p1.way, p2.way) AND \
 	  (SELECT count(*)=0 FROM (SELECT (ST_DUMPPOINTS(p1.way)).geom ) AS points1, (SELECT (ST_DUMPPOINTS(p2.way)).geom ) AS points2 WHERE points1.geom = points2.geom) \
 	  AND (( NOT (p1.tags ? 'layer')  OR NOT (p2.tags ?'layer')) OR ( (p2.tags -> 'layer') = (p1.tags ->'layer') ));");
-	      return console.error('edificios superpuestos  SELECT  error running query', err);
+	      console.log('edificios superpuestos  SELECT  error running query', err);
 	    }
-	    var ressultCount = result.rows.length;
-	    insertNumer = ((result.rows.length));
-	    var type = new Array("way", "way");
-	    var ids = new Array();
-	    var geom = new Array();
-	    var tags = new Array();
-	    var resultado = result.rows;
-	   for(var i = 0; i < ressultCount; i++){
-		  ids[0] = resultado[i].id1;
-		  ids[1] = resultado[i].id2;
-		  geom[0] = resultado[i].way1;
-		  geom[1] = resultado[i].way2;
-		  geom[2] = resultado[i].way;
-		  tags[0] = resultado[i].tags1.replace(/'/g, "''");
-		  tags[1] = resultado[i].tags2.replace(/'/g, "''");
-		    client.query("INSERT INTO error_104 (geom, tags, id_osm, type_osm, focus) VALUES ( ARRAY[ST_Transform( ST_SetSRID(ST_GeomFromText('"+geom[0]+"'),900913), 4326), ST_Transform(ST_SetSRID(ST_GeomFromText('"+geom[1]+"'),900913), 4326)], ARRAY['"+tags[0]+"'::hstore,'"+tags[1]+"'::hstore] , '{"+ids[0]+", "+ids[1]+"}',ARRAY['"+type[0]+"', '"+type[1]+"'], ST_Transform( ST_SetSRID(ST_GeomFromText('"+geom[2]+"'),900913), 4326));", function(err, result) {
-		    if(err) {
-		      console.log("INSERT INTO error_104 (geom, tags, id_osm, type_osm, focus) VALUES ( ARRAY[ST_Transform( ST_SetSRID(ST_GeomFromText('"+geom[0]+"'),900913), 4326), ST_Transform(ST_SetSRID(ST_GeomFromText('"+geom[1]+"'),900913), 4326)], ARRAY['"+tags[0]+"'::hstore,'"+tags[1]+"'::hstore], '{"+ids[0]+", "+ids[1]+"}',ARRAY['"+type[0]+"', '"+type[1]+"'], ST_Transform( ST_SetSRID(ST_GeomFromText('"+geom[2]+"'),900913), 4326));");
-		      insertNumer--;
-		      return console.error('edificios superpuestos  INSERT  error running query', err);
-		    }  
-		    else{
-		      insertNumer--;
-		    }
-		    if(insertNumer == 0){
-		      console.log("5 - Ejecutando edificios superpuestos");
-		      callback();
-		      client.end();
-		    }
-		  });
+	    else{
+	      var type = new Array("way", "way");
+	      var ids = new Array();
+	      var geom = new Array();
+	      var tags = new Array();
+	        async.each(result.rows, function( row, callbackEach) {
+		  ids[0] = row.id1;
+		  ids[1] = row.id2;
+		  geom[0] = row.way1;
+		  geom[1] = row.way2;
+		  geom[2] = row.way;
+		  tags[0] = row.tags1.replace(/'/g, "''");
+		  tags[1] = row.tags2.replace(/'/g, "''");
+		    clientOne.query("INSERT INTO error_104 (geom, tags, id_osm, type_osm, focus) VALUES ( ARRAY[ST_Transform( ST_SetSRID(ST_GeomFromText('"+geom[0]+"'),900913), 4326), ST_Transform(ST_SetSRID(ST_GeomFromText('"+geom[1]+"'),900913), 4326)], ARRAY['"+tags[0]+"'::hstore,'"+tags[1]+"'::hstore] , '{"+ids[0]+", "+ids[1]+"}',ARRAY['"+type[0]+"', '"+type[1]+"'], ST_Transform( ST_SetSRID(ST_GeomFromText('"+geom[2]+"'),900913), 4326));", function(err, result) {
+		      if(err) {
+			console.log("INSERT INTO error_104 (geom, tags, id_osm, type_osm, focus) VALUES ( ARRAY[ST_Transform( ST_SetSRID(ST_GeomFromText('"+geom[0]+"'),900913), 4326), ST_Transform(ST_SetSRID(ST_GeomFromText('"+geom[1]+"'),900913), 4326)], ARRAY['"+tags[0]+"'::hstore,'"+tags[1]+"'::hstore], '{"+ids[0]+", "+ids[1]+"}',ARRAY['"+type[0]+"', '"+type[1]+"'], ST_Transform( ST_SetSRID(ST_GeomFromText('"+geom[2]+"'),900913), 4326));");
+			console.log('edificios superpuestos  INSERT  error running query', err);
+		      }  
+		      callbackEach();
+		    });
+		}, function(err){
+		    console.log("5 - Ejecutando edificios superpuestos");
+		    clientOne.end()
+		    callback();
+		});
 	    }
-	    if(insertNumer == 0){
-		      console.log("5 - Ejecutando edificios superpuestos");
-		      callback();
-		      client.end();
-		    }
-	   }); 
-	});  
+	  });
+    }
+  });
+
+
+
+
+
+  
+//     client.connect(function(err) {
+// 	  var insertNumer;  
+// 	  if(err) {
+// 	    callback();
+// 	    return console.error('could not connect to postgres', err);
+// 	  }
+// 	  client.query("SELECT p1.tags AS tags1, p2.tags AS tags2, p1.osm_id AS id1, p2.osm_id AS id2, st_astext(p1.way) AS way1, st_astext(p2.way) AS way2, ST_AsText(ST_Intersection(p1.way, p2.way)) AS way \
+// 	  FROM " + token + "_polygon p1, " + token + "_polygon p2 \
+// 	  WHERE p1.building IS NOT NULL AND p2.building IS NOT NULL AND ST_Intersects(p1.way,p2.way ) AND p1.osm_id != p2.osm_id AND NOT ST_Touches(p1.way, p2.way) AND \
+// 	  (SELECT count(*)=0 FROM (SELECT (ST_DUMPPOINTS(p1.way)).geom ) AS points1, (SELECT (ST_DUMPPOINTS(p2.way)).geom ) AS points2 WHERE points1.geom = points2.geom) \
+// 	  AND (( NOT (p1.tags ? 'layer')  OR NOT (p2.tags ?'layer')) OR ( (p2.tags -> 'layer') = (p1.tags ->'layer') ));", function(err, result) {
+// 	   // console.log("Select 5 ejecutada");
+// 	    if(err) {
+// 	      callback();
+// 	      console.log("SELECT p1.tags AS tags1, p2.tags AS tags2, p1.osm_id AS id1, p2.osm_id AS id2, st_astext(p1.way) AS way1, st_astext(p2.way) AS way2, ST_AsText(ST_Intersection(p1.way, p2.way)) AS way \
+// 	  FROM " + token + "_polygon p1, " + token + "_polygon p2 \
+// 	  WHERE p1.building IS NOT NULL AND p2.building IS NOT NULL AND ST_Intersects(p1.way,p2.way ) AND p1.osm_id != p2.osm_id AND NOT ST_Touches(p1.way, p2.way) AND \
+// 	  (SELECT count(*)=0 FROM (SELECT (ST_DUMPPOINTS(p1.way)).geom ) AS points1, (SELECT (ST_DUMPPOINTS(p2.way)).geom ) AS points2 WHERE points1.geom = points2.geom) \
+// 	  AND (( NOT (p1.tags ? 'layer')  OR NOT (p2.tags ?'layer')) OR ( (p2.tags -> 'layer') = (p1.tags ->'layer') ));");
+// 	      return console.error('edificios superpuestos  SELECT  error running query', err);
+// 	    }
+// 	    var ressultCount = result.rows.length;
+// 	    insertNumer = ((result.rows.length));
+// 	    var type = new Array("way", "way");
+// 	    var ids = new Array();
+// 	    var geom = new Array();
+// 	    var tags = new Array();
+// 	    var resultado = result.rows;
+// 	   for(var i = 0; i < ressultCount; i++){
+// 		  ids[0] = resultado[i].id1;
+// 		  ids[1] = resultado[i].id2;
+// 		  geom[0] = resultado[i].way1;
+// 		  geom[1] = resultado[i].way2;
+// 		  geom[2] = resultado[i].way;
+// 		  tags[0] = resultado[i].tags1.replace(/'/g, "''");
+// 		  tags[1] = resultado[i].tags2.replace(/'/g, "''");
+// 		    client.query("INSERT INTO error_104 (geom, tags, id_osm, type_osm, focus) VALUES ( ARRAY[ST_Transform( ST_SetSRID(ST_GeomFromText('"+geom[0]+"'),900913), 4326), ST_Transform(ST_SetSRID(ST_GeomFromText('"+geom[1]+"'),900913), 4326)], ARRAY['"+tags[0]+"'::hstore,'"+tags[1]+"'::hstore] , '{"+ids[0]+", "+ids[1]+"}',ARRAY['"+type[0]+"', '"+type[1]+"'], ST_Transform( ST_SetSRID(ST_GeomFromText('"+geom[2]+"'),900913), 4326));", function(err, result) {
+// 		    if(err) {
+// 		      console.log("INSERT INTO error_104 (geom, tags, id_osm, type_osm, focus) VALUES ( ARRAY[ST_Transform( ST_SetSRID(ST_GeomFromText('"+geom[0]+"'),900913), 4326), ST_Transform(ST_SetSRID(ST_GeomFromText('"+geom[1]+"'),900913), 4326)], ARRAY['"+tags[0]+"'::hstore,'"+tags[1]+"'::hstore], '{"+ids[0]+", "+ids[1]+"}',ARRAY['"+type[0]+"', '"+type[1]+"'], ST_Transform( ST_SetSRID(ST_GeomFromText('"+geom[2]+"'),900913), 4326));");
+// 		      insertNumer--;
+// 		      return console.error('edificios superpuestos  INSERT  error running query', err);
+// 		    }  
+// 		    else{
+// 		      insertNumer--;
+// 		    }
+// 		    if(insertNumer == 0){
+// 		      console.log("5 - Ejecutando edificios superpuestos");
+// 		      callback();
+// 		      client.end();
+// 		    }
+// 		  });
+// 	    }
+// 	    if(insertNumer == 0){
+// 		      console.log("5 - Ejecutando edificios superpuestos");
+// 		      callback();
+// 		      client.end();
+// 		    }
+// 	   }); 
+// 	});  
 }
 
 exports.getSolution = function getSolution(idError, callback){

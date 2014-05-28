@@ -1,5 +1,6 @@
-var pg=require("/usr/lib/node_modules/pg");
-var obtenerId = require('/var/www/localhost/htdocs/validator/obtenerId');
+var pg=require("/usr/lib/node_modules/pg"),
+    async = require("../node_modules/async");
+// var obtenerId = require('/var/www/localhost/htdocs/validator/obtenerId');
 var    conString = "tcp://postgres:4321@localhost/validator";
 var    client = new pg.Client(conString);
     
@@ -62,64 +63,120 @@ exports.createTable = function createTable(callback){
 }
 
 exports.test = function test(token, callback){    
-    client.connect(function(err) {
-	  var insertNumber;
-	  if(err) {
-	    callback();
-	    return console.error('could not connect to postgres', err);
-	  }
-	  client.query("SELECT p1.tags AS tags1, p2.tags AS tags2, p1.osm_id AS id1, p2.osm_id AS id2,st_astext(p1.way) AS way1, st_astext(p2.way) AS way2, ST_AsText(ST_INTERSECTION(p1.way, p2.way)) AS way FROM " + token + "_line p1, " + token + "_line p2 WHERE (((p1.tags -> 'name') = (p2.tags -> 'name')) OR ((p1.tags -> 'name:es') = (p2.tags -> 'name:es'))) AND p1.osm_id!=p2.osm_id;", function(err, result) {
-	   // console.log("Select 21 ejecutada");
-	    if(err) {
-	      console.log("SELECT p1.tags AS tags1, p2.tags AS tags2, p1.osm_id AS id1, p2.osm_id AS id2,st_astext(p1.way) AS way1, st_astext(p2.way) AS way2, ST_AsText(ST_INTERSECTION(p1.way, p2.way)) AS way FROM " + token + "_line p1, " + token + "_line p2 WHERE (((p1.tags -> 'name') = (p2.tags -> 'name')) OR ((p1.tags -> 'name:es') = (p2.tags -> 'name:es'))) AND p1.osm_id!=p2.osm_id;");
-	      return console.error('vias con nombres iguales  SELECT  error running query', err);
-	    }
- 	      insertNumber = result.rows.length;
-	      var ressultCount = result.rows.length;
-	      var type = new Array("way", "way");
-	      var ids = new Array();
-	      var geom = new Array();
-	      var tags = new Array();
-	      var resultado = result.rows;
-	      for(var i = 0; i < ressultCount; i++){
-		    ids[0] = resultado[i].id1;
-		    ids[1] = resultado[i].id2;
-		    geom[0] = resultado[i].way1;
-		    geom[1] = resultado[i].way2;
-		    geom[2] = resultado[i].way;
-		    tags[0] = resultado[i].tags1;
-		    tags[1] = resultado[i].tags2;
-		    var query = "";
-		    if ( geom[2] == "GEOMETRYCOLLECTION EMPTY")
-		    {
-		      query = "INSERT INTO error_120 (geom, tags, id_osm, type_osm) VALUES ( ARRAY[ST_Transform( ST_SetSRID(ST_GeomFromText('"+ geom[0]+"'),900913), 4326), ST_Transform(ST_SetSRID(ST_GeomFromText('"+geom[1]+"'),900913), 4326)], ARRAY['"+tags[0].replace(/'/g, "''")+"'::hstore,'"+tags[1].replace(/'/g, "''")+"'::hstore], '{"+ids[0]+" , "+ids[1]+"}' ,ARRAY['"+type[0]+"', '"+type[1]+"']);"
-		    }
-		    else{
-		      query = "INSERT INTO error_120 (geom, tags, id_osm, type_osm, focus) VALUES ( ARRAY[ST_Transform( ST_SetSRID(ST_GeomFromText('"+ geom[0]+"'),900913), 4326), ST_Transform(ST_SetSRID(ST_GeomFromText('"+geom[1]+"'),900913), 4326)], ARRAY['"+tags[0].replace(/'/g, "''")+"'::hstore,'"+tags[1].replace(/'/g, "''")+"'::hstore], '{"+ids[0]+" , "+ids[1]+"}' ,ARRAY['"+type[0]+"', '"+type[1]+"'], ST_Transform( ST_SetSRID(ST_GeomFromText('"+ geom[2]+"'),900913), 4326));";
-		    }
-		    client.query(query, function(err, result) {
-		      if(err) {
-			console.log(query);
-			return console.error('vias con nombres iguales  INSERT  error running query', err);
-			insertNumber--;
-		      }  
-		      else{
-		      insertNumber--; 
-		      }
-		      if(insertNumber==0){
-			console.log("21 - Ejecutando vias con nombres iguales");
-			callback();
-			client.end();
-		      }
-		    });
-	      }
-	      if(insertNumber==0){
-			console.log("21 - Ejecutando vias con nombres iguales");
-			callback();
-			client.end();
-		      }
+  var clientOne = new pg.Client(conString);
+  clientOne.connect(function(err) {
+    if(err) {
+      callback();
+      console.log('could not connect to postgres', err);
+    }
+    else{
+      clientOne.query("SELECT p1.tags AS tags1, p2.tags AS tags2, p1.osm_id AS id1, p2.osm_id AS id2,st_astext(p1.way) AS way1, st_astext(p2.way) AS way2, ST_AsText(ST_INTERSECTION(p1.way, p2.way)) AS way FROM " + token + "_line p1, " + token + "_line p2 WHERE (((p1.tags -> 'name') = (p2.tags -> 'name')) OR ((p1.tags -> 'name:es') = (p2.tags -> 'name:es'))) AND p1.osm_id!=p2.osm_id;", function(err, result) {
+	if(err) {
+	  callback();
+	  console.log("SELECT p1.tags AS tags1, p2.tags AS tags2, p1.osm_id AS id1, p2.osm_id AS id2,st_astext(p1.way) AS way1, st_astext(p2.way) AS way2, ST_AsText(ST_INTERSECTION(p1.way, p2.way)) AS way FROM " + token + "_line p1, " + token + "_line p2 WHERE (((p1.tags -> 'name') = (p2.tags -> 'name')) OR ((p1.tags -> 'name:es') = (p2.tags -> 'name:es'))) AND p1.osm_id!=p2.osm_id;");
+	  console.log('vias con nombres iguales  SELECT  error running query', err);
+	}
+	else{
+	  var type = new Array("way", "way");
+	  var ids = new Array();
+	  var geom = new Array();
+	  var tags = new Array();
+	  async.each(result.rows, function( row, callbackEach) {
+		ids[0] = row.id1;
+		ids[1] = row.id2;
+		geom[0] = row.way1;
+		geom[1] = row.way2;
+		geom[2] = row.way;
+		tags[0] = row.tags1;
+		tags[1] = row.tags2;
+		var query = "";
+		if ( geom[2] == "GEOMETRYCOLLECTION EMPTY")
+		{
+		  query = "INSERT INTO error_120 (geom, tags, id_osm, type_osm) VALUES ( ARRAY[ST_Transform( ST_SetSRID(ST_GeomFromText('"+ geom[0]+"'),900913), 4326), ST_Transform(ST_SetSRID(ST_GeomFromText('"+geom[1]+"'),900913), 4326)], ARRAY['"+tags[0].replace(/'/g, "''")+"'::hstore,'"+tags[1].replace(/'/g, "''")+"'::hstore], '{"+ids[0]+" , "+ids[1]+"}' ,ARRAY['"+type[0]+"', '"+type[1]+"']);"
+		}
+		else{
+		  query = "INSERT INTO error_120 (geom, tags, id_osm, type_osm, focus) VALUES ( ARRAY[ST_Transform( ST_SetSRID(ST_GeomFromText('"+ geom[0]+"'),900913), 4326), ST_Transform(ST_SetSRID(ST_GeomFromText('"+geom[1]+"'),900913), 4326)], ARRAY['"+tags[0].replace(/'/g, "''")+"'::hstore,'"+tags[1].replace(/'/g, "''")+"'::hstore], '{"+ids[0]+" , "+ids[1]+"}' ,ARRAY['"+type[0]+"', '"+type[1]+"'], ST_Transform( ST_SetSRID(ST_GeomFromText('"+ geom[2]+"'),900913), 4326));";
+		}
+		
+		clientOne.query(query, function(err, result) {
+		  if(err) {
+		    console.log(query);
+		    console.log('vias con nombres iguales  INSERT  error running query', err);
+		  }  
+		  callbackEach();
+		});
+	  }, function(err){
+	      console.log("21 - Ejecutando vias con nombres iguales");
+	      clientOne.end()
+	      callback();
 	  });
-	}); 
+	}
+      });
+    }
+  });
+
+  
+  
+  
+  
+//     client.connect(function(err) {
+// 	  var insertNumber;
+// 	  if(err) {
+// 	    callback();
+// 	    return console.error('could not connect to postgres', err);
+// 	  }
+// 	  client.query("SELECT p1.tags AS tags1, p2.tags AS tags2, p1.osm_id AS id1, p2.osm_id AS id2,st_astext(p1.way) AS way1, st_astext(p2.way) AS way2, ST_AsText(ST_INTERSECTION(p1.way, p2.way)) AS way FROM " + token + "_line p1, " + token + "_line p2 WHERE (((p1.tags -> 'name') = (p2.tags -> 'name')) OR ((p1.tags -> 'name:es') = (p2.tags -> 'name:es'))) AND p1.osm_id!=p2.osm_id;", function(err, result) {
+// 	   // console.log("Select 21 ejecutada");
+// 	    if(err) {
+// 	      console.log("SELECT p1.tags AS tags1, p2.tags AS tags2, p1.osm_id AS id1, p2.osm_id AS id2,st_astext(p1.way) AS way1, st_astext(p2.way) AS way2, ST_AsText(ST_INTERSECTION(p1.way, p2.way)) AS way FROM " + token + "_line p1, " + token + "_line p2 WHERE (((p1.tags -> 'name') = (p2.tags -> 'name')) OR ((p1.tags -> 'name:es') = (p2.tags -> 'name:es'))) AND p1.osm_id!=p2.osm_id;");
+// 	      return console.error('vias con nombres iguales  SELECT  error running query', err);
+// 	    }
+//  	      insertNumber = result.rows.length;
+// 	      var ressultCount = result.rows.length;
+// 	      var type = new Array("way", "way");
+// 	      var ids = new Array();
+// 	      var geom = new Array();
+// 	      var tags = new Array();
+// 	      var resultado = result.rows;
+// 	      for(var i = 0; i < ressultCount; i++){
+// 		    ids[0] = row.id1;
+// 		    ids[1] = row.id2;
+// 		    geom[0] = row.way1;
+// 		    geom[1] = row.way2;
+// 		    geom[2] = row.way;
+// 		    tags[0] = row.tags1;
+// 		    tags[1] = row.tags2;
+// 		    var query = "";
+// 		    if ( geom[2] == "GEOMETRYCOLLECTION EMPTY")
+// 		    {
+// 		      query = "INSERT INTO error_120 (geom, tags, id_osm, type_osm) VALUES ( ARRAY[ST_Transform( ST_SetSRID(ST_GeomFromText('"+ geom[0]+"'),900913), 4326), ST_Transform(ST_SetSRID(ST_GeomFromText('"+geom[1]+"'),900913), 4326)], ARRAY['"+tags[0].replace(/'/g, "''")+"'::hstore,'"+tags[1].replace(/'/g, "''")+"'::hstore], '{"+ids[0]+" , "+ids[1]+"}' ,ARRAY['"+type[0]+"', '"+type[1]+"']);"
+// 		    }
+// 		    else{
+// 		      query = "INSERT INTO error_120 (geom, tags, id_osm, type_osm, focus) VALUES ( ARRAY[ST_Transform( ST_SetSRID(ST_GeomFromText('"+ geom[0]+"'),900913), 4326), ST_Transform(ST_SetSRID(ST_GeomFromText('"+geom[1]+"'),900913), 4326)], ARRAY['"+tags[0].replace(/'/g, "''")+"'::hstore,'"+tags[1].replace(/'/g, "''")+"'::hstore], '{"+ids[0]+" , "+ids[1]+"}' ,ARRAY['"+type[0]+"', '"+type[1]+"'], ST_Transform( ST_SetSRID(ST_GeomFromText('"+ geom[2]+"'),900913), 4326));";
+// 		    }
+// 		    client.query(query, function(err, result) {
+// 		      if(err) {
+// 			console.log(query);
+// 			return console.error('vias con nombres iguales  INSERT  error running query', err);
+// 			insertNumber--;
+// 		      }  
+// 		      else{
+// 		      insertNumber--; 
+// 		      }
+// 		      if(insertNumber==0){
+// 			console.log("21 - Ejecutando vias con nombres iguales");
+// 			callback();
+// 			client.end();
+// 		      }
+// 		    });
+// 	      }
+// 	      if(insertNumber==0){
+// 			console.log("21 - Ejecutando vias con nombres iguales");
+// 			callback();
+// 			client.end();
+// 		      }
+// 	  });
+// 	}); 
 }
 
 exports.getSolution = function getSolution(idError, callback){

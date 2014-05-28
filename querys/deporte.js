@@ -1,6 +1,7 @@
 var pg = require("/usr/lib/node_modules/pg"),
-    obtenerId = require('/var/www/localhost/htdocs/validator/obtenerId'),
+//     obtenerId = require('/var/www/localhost/htdocs/validator/obtenerId'),
     conString = "tcp://postgres:4321@localhost/validator",
+     async = require("../node_modules/async"),
     client = new pg.Client(conString);
     
 var tableName = "error_102";
@@ -64,6 +65,49 @@ exports.createTable = function createTable(callback){
 
 
 exports.test = function test(token, callback){    
+  var clientOne = new pg.Client(conString);
+  clientOne.connect(function(err) {
+    if(err) {
+      callback();
+      console.log('could not connect to postgres', err);
+    }
+    else{
+      var query = "SELECT osm_id, tags, way FROM  "+token+"_line WHERE ((tags -> 'leisure') = 'pitch') AND ((tags-> 'sport') IS NULL OR (tags-> 'sport') = 'FIXME');";
+      clientOne.query(query, function(err, result) {
+	if(err) {
+	  callback();
+	  console.log(query);
+	  console.log('vias con nombres iguales  SELECT  error running query', err);
+	}
+	else{
+	  var type = new Array("way");
+	  var ids = new Array();
+	  var geom= new Array();
+	  var tags = new Array();
+	   async.each(result.rows, function( row, callbackEach) {
+	      ids[0] = row.osm_id;
+	      geom[0] = row.way;
+	      tags[0] = row.tags.replace(/'/g, "''");
+	      clientOne.query("INSERT INTO error_102 (geom, tags, id_osm, type_osm) VALUES (ARRAY[ST_Transform( '"+ geom[0]+"', 4326)], ARRAY['"+tags[0]+"'::hstore], '{"+ids[0]+"}',ARRAY['"+type[0]+"'] );", function(err, result) {
+		if(err) {
+		  console.log("INSERT INTO error_102 (geom, tags, id_osm, type_osm) VALUES (ARRAY[ST_Transform( '"+ geom[0]+"', 4326)], ARRAY['"+tags.replace(/'/g, "''")+"'::hstore], '{"+ids[0]+"}',ARRAY['"+type[0]+"'] );");
+		  console.log('deportes  INSERT  error running query', err);
+		}  
+		callbackEach();
+	      }); 
+	     
+	  }, function(err){
+	      console.log("3 - Ejecutando deportes");
+	      clientOne.end()
+	      callback();
+	  });
+	}
+      });
+    }
+    
+  });
+  /*
+  
   client.connect(function(err) {
 	  var insertNumer;
 	  if(err) {
@@ -106,7 +150,7 @@ exports.test = function test(token, callback){
 		    }
 	  });
 	  
-  }); 
+  }); */
 } 
 
 

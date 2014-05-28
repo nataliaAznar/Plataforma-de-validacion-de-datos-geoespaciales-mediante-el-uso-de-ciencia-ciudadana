@@ -1,6 +1,7 @@
 var pg = require("/usr/lib/node_modules/pg"),
-    obtenerId = require('/var/www/localhost/htdocs/validator/obtenerId'),
+//     obtenerId = require('/var/www/localhost/htdocs/validator/obtenerId'),
     conString = "tcp://postgres:4321@localhost/validator",
+    async = require("../node_modules/async"),
     client = new pg.Client(conString);
     
 var tableName = "error_110";
@@ -63,6 +64,50 @@ exports.createTable = function createTable(callback){
 
 
 exports.test = function test(token, callback){    
+   var clientOne = new pg.Client(conString);
+   clientOne.connect(function(err) {
+	if(err) {
+	  callbackParallel();
+	  console.log('could not connect to postgres', err);
+	}
+	else{
+	  var query = "SELECT ST_AsText( ST_MakeLine (ST_ClosestPoint(p1.way, p2.way), ST_ClosestPoint(p2.way, p1.way))) AS line, p1.tags AS tags1, p2.tags AS tags2, p1.osm_id AS id1, p2.osm_id AS id2,st_astext(p1.way) AS way1, st_astext(p2.way) AS way2 FROM " + token + "_line p1, " + token + "_line p2 WHERE p1.highway is not null AND p2.highway is not null AND ((ST_IsClosed(p2.way) AND ( ST_DWithin(ST_EndPoint(p1.way), p2.way, 0.01) OR ST_DWithin(ST_StartPoint(p1.way), p2.way, 0.01))) OR (ST_IsClosed(p1.way) AND (ST_DWithin(ST_EndPoint(p2.way), p1.way, 0.01) OR ST_DWithin(ST_StartPoint(p2.way), p1.way, 0.01)))) AND ST_DISTANCE(p1.way, p2.way)<>0;";
+	  clientOne.query(query, function(err, result) {
+	    if(err) {
+	      callback();
+	      console.log(query);
+	      console.log('nodo extremo via proximo a otro vial  SELECT  error running query', err);
+	    }
+	    else{
+	      var type = new Array("way", "way");
+	      var ids = new Array();
+	      var geom = new Array();
+	      var tags = new Array();
+	      async.each(result.rows, function( row, callbackEach) {
+		  ids[0] = row.id1;
+		  ids[1] = row.id2;
+		  geom[0] = row.way1;
+		  geom[1] = row.way2;
+		  geom[2] = row.line;
+		  tags[0] = row.tags1.replace(/'/g, "''");
+		  tags[1] = row.tags2.replace(/'/g, "''");
+		  clientOne.query("INSERT INTO error_110 (geom, tags, id_osm, type_osm, focus) VALUES (ARRAY[ST_TRANSFORM( ST_SetSRID(ST_GeomFromText('"+ geom[0]+"'),900913), 4326), ST_Transform( ST_SetSRID(ST_GeomFromText('"+geom[1]+"'),900913), 4326)], ARRAY['"+tags[0]+"'::hstore,'"+tags[1]+"'::hstore], '{"+ids[0]+", "+ids[1]+"}',ARRAY[' "+type[0]+"', '"+type[1]+"'], ST_Transform (ST_SetSRID (ST_GeomFromText('"+ geom[2]+"'),900913), 4326));", function(err, result) {
+		    if(err) {
+		      console.log("INSERT INTO error_110 (geom, tags, id_osm, type_osm, focus) VALUES (ARRAY[ST_TRANSFORM( ST_SetSRID(ST_GeomFromText('"+ geom[0]+"'),900913), 4326), ST_Transform( ST_SetSRID(ST_GeomFromText('"+geom[1]+"'),900913), 4326)], ARRAY['"+tags[0]+"'::hstore,'"+tags[1]+"'::hstore], '{"+ids[0]+", "+ids[1]+"}',ARRAY[' "+type[0]+"', '"+type[1]+"'], ST_Transform (ST_SetSRID (ST_GeomFromText('"+ geom[2]+"'),900913), 4326));");
+		      console.log('nodo extremo via proximo a otro vial  INSERT  error running query', err);
+		    }  
+		    callbackEach();
+		  });
+	      }, function(err){
+		callback();
+	      });
+	    }
+	  });
+	}
+   });
+  
+  /*
+  
   client.connect(function(err) {
 	  var insertNumer
 	  if(err) {
@@ -111,7 +156,7 @@ exports.test = function test(token, callback){
 		      client.end();
 		    }
 	  });
-	}); 
+	}); */
 }
 
 exports.getSolution = function getSolution(idError, callback){

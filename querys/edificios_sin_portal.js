@@ -1,6 +1,7 @@
- var pg=require("/usr/lib/node_modules/pg"),
-    obtenerId = require('/var/www/localhost/htdocs/validator/obtenerId'),
+var pg=require("/usr/lib/node_modules/pg"),
+//     obtenerId = require('/var/www/localhost/htdocs/validator/obtenerId'),
     conString = "tcp://postgres:4321@localhost/validator",
+     async = require("../node_modules/async"),
     client = new pg.Client(conString);
     
 var tableName = "error_122";
@@ -63,6 +64,44 @@ exports.createTable = function createTable(callback){
 
     
 exports.test = function test(token, callback){    
+  var clientOne = new pg.Client(conString);
+  clientOne.connect(function(err) {
+    if(err) {
+      callback();
+      console.log('could not connect to postgres', err);
+    }
+    else{
+      clientOne.query("SELECT buildings.osm_id, buildings.way, buildings.tags FROM ( SELECT * FROM " + token + "_polygon WHERE (tags->'building') IS NOT NULL ) AS buildings, (SELECT * FROM "+token+"_point WHERE (tags->'entrance') IS NOT NULL) AS entrances WHERE NOT ST_Intersects( ST_Buffer ( geography(ST_Transform(buildings.way, 4326)), 1)::geometry , entrances.way )", function(err, result) {
+	 if(err) {
+	    callback();
+	    console.log("SELECT buildings.osm_id, buildings.way, buildings.tags FROM ( SELECT * FROM " + token + "_polygon WHERE (tags->'building') IS NOT NULL ) AS buildings, (SELECT * FROM "+token+"_point WHERE (tags->'entrance') IS NOT NULL) AS entrances WHERE NOT ST_Intersects( ST_Buffer ( geography(ST_Transform(buildings.way, 4326)), 1)::geometry , entrances.way )");
+	    console.log('Edificios sin portal  SELECT  error running query', err);
+	  }
+	  else{
+	    var type = new Array("way");
+	    var ids = new Array(); 
+	     async.each(result.rows, function( row, callbackEach) {
+		  ids[0] = row.osm_id;
+		  var tags = row.tags;
+		  clientOne.query("INSERT INTO error_122 (geom, tags, id_osm, type_osm) VALUES ( ARRAY[st_transform('"+row.way+"', 4326)], ARRAY['"+tags.replace(/'/g, "''")+"'::hstore], '{ "+ids[0]+"}', ARRAY['"+type[0]+"']);", function(err, result) {
+		    if(err) {
+		    console.log("INSERT INTO error_122 (geom, tags, id_osm, type_osm) VALUES ( ARRAY[st_transform('"+row.way+"', 4326)], ARRAY['"+tags.replace(/'/g, "''")+"'::hstore], '{ "+ids[0]+"}', ARRAY['"+type[0]+"']);");
+		    console.log('vias con nombres iguales  INSERT  error running query', err);
+		  }  
+		  callbackEach();
+		});
+	     }, function(err){
+		console.log("23 - ejecutando edificio sin portal ");
+		clientOne.end()
+		callback();
+	    });
+	  }
+      });
+    }
+  });
+  
+  /*
+  
   client.connect(function(err) {
 	  var insertNumer;
 	  if(err) {
@@ -112,7 +151,7 @@ exports.test = function test(token, callback){
 			client.end();
 		    }
 	}); 
-    }); 
+    }); */
 }
 
 exports.getSolution = function getSolution(idError, callback){
