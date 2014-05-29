@@ -6,7 +6,14 @@ var pg = require("/usr/lib/node_modules/pg"),
 
 var tableName = "error_117";
 exports.tableName = tableName;
-var errorDesc = "Hace falta especificar qué tipo de cultivo se encuentra en la ubicación";
+var errorDesc = '<p>Especificar qué tipo de cultivo se encuentra en la ubicación.</br>\
+Los tipos de cultivo se especifircan con el tag landuse = X o con el tag natural = X y las posibles combinaciones vienen descritas en: </br>\
+<a href ="http://wiki.openstreetmap.org/wiki/ES:Map_Features#Landuse_.28Uso_del_suelo.29" >http://wiki.openstreetmap.org/wiki/ES:Map_Features#Landuse_.28Uso_del_suelo.29 </a> </br>\
+<a href = "http://wiki.openstreetmap.org/wiki/ES:Map_Features#Natural_.28Natural.29">http://wiki.openstreetmap.org/wiki/ES:Map_Features#Natural_.28Natural.29</a> </p>\
+</br><ul>\
+<li type="circle">Añadir el tag correspondiente a la geometría</li>\
+</ul></p>'
+;
 exports.errorDesc = errorDesc;
 var numError = 117;
 exports.numError = numError;
@@ -303,22 +310,15 @@ exports.getSolution = function getSolution(idError, callback){
 	  return console.error('could not connect to postgres', err);
 	}
 
-	client.query( "SELECT problem, COUNT(*)  FROM validations WHERE Error_type = 117 group by problem", function(err, result){
+	client.query( "SELECT problem, COUNT(*)  FROM validations WHERE error_type = 117 AND error_id = " + idError + " GROUP BY problem ORDER BY count desc, problem desc", function(err, result){
 	  if(err){
 	    console.log("error getting solution of error117 "+err);
 	    client.end();
 	  }
 	  else{
-	    var problem;
-	    var ant = -1;
-	    for( var i = 0; i < result.rows.length; i++){
-	      if(result.rows[i].count > ant){
-		ant = result.rows[i].count ;
-		problem = result.rows[i].problem;
-	      }
-	    }
+	    var problem = result.rows[0].problem;
 	    if ( problem == "" ){
-		client.query( "SELECT count(tags->'landuse') AS landuse, count(tags->'natural') AS natural FROM validations WHERE error_type = 117  ", function (err, result){ 
+		client.query( "SELECT count(tags[1]->'landuse') AS landuse, count(tags[1]->'natural') AS natural FROM validations WHERE error_type = 117 AND error_id = " + idError + " ", function (err, result){ 
 		    if(err){
 		      console.log("error getting solution of error117 "+err);
 		      client.end();
@@ -328,28 +328,21 @@ exports.getSolution = function getSolution(idError, callback){
 		      var name;
 		      if( number = result.rows[0].landuse) name = "landuse";
 		      else if ( number = result.rows[0].natural) name = "natural";
-		      client.query( "SELECT (tags->'"+name+"') AS name, count(tags->'"+name+"') AS count FROM validations WHERE error_type = 117 and (tags->'"+name+"') is not null GROUP BY (tags->'"+name+"')", function (err, result){
+		      client.query( "SELECT (tags[1]->'"+name+"') AS name, count(tags[1]->'"+name+"') AS count FROM validations WHERE error_type = 117 AND error_id = " + idError + " AND (tags->'"+name+"') is not null GROUP BY (tags->'"+name+"') ORDER BY count desc", function (err, result){
 			  if(err){
 			    console.log("error getting solution of error117 "+err);
 			    client.end();
 			  }
 			  else{
-			  
-			  var ant = -1;
-			  var name = "";
-			  for( var j = 0; j < result.rows.length; j++){
-			    if(result.rows[i].count > ant){
-			      ant = result.rows[i].count ;
-			      name = result.rows[i].name;
-			    }
+			    var name = result.rows[0].name;
+			    console.log("solución del error 117, id = " + idError + ", " + name);
 			  }
-			}
 		      });
 		    }
 		  });
 	    }
 	    else if ( problem == "Borrar elemento" ){
-	      client.query( "SELECT GeometryType(geom) as type, * FROM error_117 WHERE idError = "+idError+";", function (err, result){
+	      client.query( "SELECT GeometryType(geom[1]) as type, * FROM error_117 WHERE idError = "+idError+";", function (err, result){
 		  if(err){
 		    console.log("error getting solution of error117 "+err);
 		    client.end();

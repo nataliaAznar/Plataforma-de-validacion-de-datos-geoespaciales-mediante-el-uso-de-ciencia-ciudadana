@@ -153,7 +153,7 @@ exports.getSolution = function getSolution(idError, callback){
 	if(err) {
 	  return console.error('could not connect to postgres', err);
 	}
-	client.query( "SELECT problem, COUNT(*) AS count FROM validations WHERE Error_type = 121 GROUP BY problem ORDER BY count desc, problem desc", function(err, result){
+	client.query( "SELECT problem, COUNT(*) AS count FROM validations WHERE error_type = 121 AND error_id = " + idError + " GROUP BY problem ORDER BY count desc, problem desc", function(err, result){
 	  if(err){
 	    console.log("error getting solution of error121 "+err);
 	    client.end();
@@ -161,7 +161,7 @@ exports.getSolution = function getSolution(idError, callback){
 	  else{
 	    var problem = result.rows[0].problem;
 	    if ( problem == "" ){
-		client.query( "SELECT (tags[1]->'name') AS name, count(tags[1]->'name') AS count FROM validations WHERE error_type = 121 and (tags->'name') is not null GROUP BY name ORDER BY count desc, name desc ;", function (err, result){
+		client.query( "SELECT (tags[1]->'name') AS name, count(tags[1]->'name') AS count FROM validations WHERE error_type = 121 AND error_id = " + idError + " AND (tags->'name') is not null GROUP BY name ORDER BY count desc, name desc ;", function (err, result){
 		  if(err){
 		    console.log("error getting solution of error121 "+err);
 		    client.end();
@@ -170,12 +170,11 @@ exports.getSolution = function getSolution(idError, callback){
 		    var name = result.rows[0].name;
 		    console.log("Resultado de la geometria error_type=121, error_id = "+idError+", "+name);
 		    client.end();
-		    client.end();
 		  }
 		});
 	    }
 	    else if ( problem == "Borrar elemento" ){
-	      client.query( "SELECT GeometryType(geom) as type, * FROM error_121 WHERE idError = "+idError+";", function (err, result){
+	      client.query( "SELECT GeometryType(geom[1]) as type, * FROM error_121 WHERE idError = "+idError+";", function (err, result){
 		  if(err){
 		    console.log("error getting solution of error121 "+err);
 		    client.end();

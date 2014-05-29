@@ -282,25 +282,33 @@ exports.getSolution = function getSolution(idError, callback){
 	if(err) {
 	  return console.error('could not connect to postgres', err);
 	}
-	client.query( "SELECT problem, COUNT(*)  FROM validations WHERE Error_type = 100 group by problem", function(err, result){
+	client.query( "SELECT problem, COUNT(*)  FROM validations WHERE error_type = 100 AND error_id = " + idError + " GROUP BY problem ORDER BY count desc, problem desc", function(err, result){
 	  if(err){
 	    console.log("error getting solution of error100 "+err);
 	    client.end();
 	  }
 	  else{
-	    var problem;
-	    var ant = -1;
-	    for( var i = 0; i < result.rows.length; i++){
-	      if(result.rows[i].count > ant){
-		ant = result.rows[i].count ;
-		problem = result.rows[i].problem;
-	      }
-	    }
+	    var problem = result.rows[0].problem;
 	    if ( problem == "" ){
-		
+		client.query("SELECT ST_IsClosed(geom[1]) as closed, count (ST_IsClosed(geom[1])) FROM validations WHERE Error_type = 100 AND error_id = " + idError + " GROUP BY ST_IsClosed(geom[1]) ORDER BY count desc", function(err, result){
+		  ir(err){
+		    console.log("error "+err);
+		    client.end();
+		  }
+		  else{
+		    if(result.rows[0].closed){
+		      
+		    }
+		    else{
+		      
+		    }
+		    
+		  client.end();
+		  }
+		});
 	    }
 	    else if ( problem == "Borrar elemento" ){
-	      client.query( "SELECT GeometryType(geom) as type, * FROM error_100 WHERE idError = "+idError+";", function (err, result){
+	      client.query( "SELECT GeometryType(geom[1]) as type, * FROM error_100 WHERE idError = "+idError+";", function (err, result){
 		  if(err){
 		    console.log("error getting solution of error100 "+err);
 		    client.end();

@@ -232,7 +232,7 @@ exports.getSolution = function getSolution(idError, callback){
 	if(err) {
 	  return console.error('could not connect to postgres', err);
 	}
-	client.query( "SELECT problem, COUNT(*) AS count  FROM validations WHERE error_type = 105 AND error_id = " + idError + " group by problem order by count desc, problem desc", function(err, result){
+	client.query( "SELECT problem, COUNT(*) AS count  FROM validations WHERE error_type = 105 AND error_id = " + idError + " GROUP BY problem ORDER BY count desc, problem desc", function(err, result){
 	  if(err){
 	    console.log("error getting solution of error105 "+err);
 	    client.end();
@@ -253,7 +253,7 @@ exports.getSolution = function getSolution(idError, callback){
 		});
 	    }
 	    else if ( problem == "Borrar elemento" ){
-	      client.query( "SELECT GeometryType(geom) as type, * FROM error_105 WHERE idError = "+idError+";", function (err, result){
+	      client.query( "SELECT GeometryType(geom[1]) as type, * FROM error_105 WHERE idError = "+idError+";", function (err, result){
 		  if(err){
 		    console.log("error getting solution of error105 "+err);
 		    client.end();

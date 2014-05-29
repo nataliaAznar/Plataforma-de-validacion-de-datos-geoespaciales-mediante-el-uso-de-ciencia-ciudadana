@@ -164,35 +164,41 @@ exports.getSolution = function getSolution(idError, callback){
 	if(err) {
 	  return console.error('could not connect to postgres', err);
 	}
-	client.query( "SELECT problem, COUNT(*)  FROM validations WHERE Error_type = 110 group by problem", function(err, result){
+	client.query( "SELECT problem, COUNT(*)  FROM validations WHERE error_type = 110 AND error_id = " + idError + "GROUP BY problem ORDER BY count desc, problem desc", function(err, result){
 	  if(err){
 	    console.log("error getting solution of error110 "+err);
 	    client.end();
 	  }
 	  else{
-	    var problem;
-	    var ant = -1;
-	    for( var i = 0; i < result.rows.length; i++){
-	      if(result.rows[i].count > ant){
-		ant = result.rows[i].count ;
-		problem = result.rows[i].problem;
-	      }
-	    }
+	    var problem = result.rows[0].problem;
 	    if ( problem == "" ){
-		
+	      client.query("SELECT array_length(geom,1 ) as size, count(array_length(geom,1 )) as count FROM validations WHERE error_type = 110 AND error_id = " + idError + " GROUP BY array_length(geom,1 ) ORDER BY count desc;", function(err, result){
+		if(err){
+		  client.end();
+		  console.log("error "+err);
+		}
+	      else{
+		if(result.rows[0].size ==1){
+		  console.log("Solución error 110, id = " + idError + ", una geometría borrada ");
+		  client.end();
+		 }
+		 else{
+		   //comprobar geometría
+		 }
+	      }
+	      });
 	    }
 	    else if ( problem == "Borrar elemento" ){
-	      client.query( "SELECT GeometryType(geom) as type, * FROM error_110 WHERE idError = "+idError+";", function (err, result){
+	      client.query( "SELECT GeometryType(geom[1]) as type, GeometryType(geom[2]) as type2, * FROM error_110 WHERE idError = "+idError+";", function (err, result){
 		  if(err){
 		    console.log("error getting solution of error110 "+err);
 		    client.end();
 		  }
 		  else {
+		    var firstEnd = 0;
+		    var secondEnd = 0;
 		    var table = "";
-		    var id = [];
-		    for ( var i = 0; i<result.rows[0].id_osm.length; i++){
-		    id[i] = result.rows[0].id_osm[i];
-		    }
+		    var id = result.rows[0].id_osm[1];
 		    switch(result.rows[0].type){
 		      case "LINESTRING":
 			table = "lines"; break;
@@ -201,7 +207,7 @@ exports.getSolution = function getSolution(idError, callback){
 		      case "POLYGON":
 			table = "polygons"; break;
 		    }
-		    client.query( "DELETE FROM validator_"+table+" WHERE id = "+id[0]+" or id = "+id[1]+";", function(err, result){
+		    client.query( "DELETE FROM validator_"+table+" WHERE id = "+id+";", function(err, result){
 		      if(err){
 			console.log("error getting solution of error110 "+err);
 			client.end();
@@ -219,11 +225,34 @@ exports.getSolution = function getSolution(idError, callback){
 				    client.end();
 				  }
 				  else {
+				    firstEnd = 1;
+				    if( secondEnd == 1)
 				    client.end();
 				  }
 			      });
 			    }
 			});
+		      }
+		    });
+		     table = "";
+		    id = result.rows[0].id_osm[2];
+		    switch(result.rows[0].type2){
+		      case "LINESTRING":
+			table = "lines"; break;
+		      case "POINT":
+			table = "points"; break;
+		      case "POLYGON":
+			table = "polygons"; break;
+		    }
+		    client.query( "DELETE FROM validator_"+table+" WHERE id = "+id+";", function(err, result){
+		      if(err){
+			console.log("error getting solution of error107 "+err);
+			client.end();
+		      }
+		      else {
+			secondEnd = 1;
+			if(firstEnd == 1 )
+			client.end();
 		      }
 		    });
 		  }

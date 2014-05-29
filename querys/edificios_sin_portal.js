@@ -159,41 +159,27 @@ exports.getSolution = function getSolution(idError, callback){
 	if(err) {
 	  return console.error('could not connect to postgres', err);
 	}
-	client.query( "SELECT problem, COUNT(*)  FROM validations WHERE Error_type = 122 group by problem", function(err, result){
+	client.query( "SELECT problem, COUNT(*)  FROM validations WHERE error_type = 122 AND error_id = " + idError + " GROUP BY problem ORDER BY count desc, problem desc", function(err, result){
 	  if(err){
 	    console.log("error getting solution of error122 "+err);
 	    client.end();
 	  }
 	  else{
-	    var problem;
-	    var ant = -1;
-	    for( var i = 0; i < result.rows.length; i++){
-	      if(result.rows[i].count > ant){
-		ant = result.rows[i].count ;
-		problem = result.rows[i].problem;
-	      }
-	    }
+	    var problem = result.rows[0].problem;
 	    if ( problem == "" ){
-		client.query( "SELECT (tags->'name') AS name, count(tags->'name') AS count FROM validations WHERE error_type = 122 and (tags->'name') is not null GROUP BY (tags->'name') ;", function (err, result){
+		client.query( "SELECT (tags[1]->'entrance') AS entrance, count(tags[1]->'entrance') AS count FROM validations WHERE error_type = 122 AND error_id = " + idError + " AND (tags[|]->'entrance') is not null GROUP BY (tags[1]->'entrance') ORDER BY count ;", function (err, result){
 		  if(err){
 		    console.log("error getting solution of error122 "+err);
 		    client.end();
 		  }
 		  else{
-		    var ant = -1;
-		    var name = "";
-		    for( var j = 0; j < result.rows.length; j++){
-		      if(result.rows[j].count > ant){
-			ant = result.rows[j].count ;
-			name = result.rows[j].name;
-		      }
-		    }
+		    var entrance = result.rows[0].entrance;
 		    client.end();
 		  }
 		});
 	    }
 	    else if ( problem == "Borrar elemento" ){
-	      client.query( "SELECT GeometryType(geom) as type, * FROM error_122 WHERE idError = "+idError+";", function (err, result){
+	      client.query( "SELECT GeometryType(geom[1]) as type, * FROM error_122 WHERE idError = "+idError+";", function (err, result){
 		  if(err){
 		    console.log("error getting solution of error122 "+err);
 		    client.end();

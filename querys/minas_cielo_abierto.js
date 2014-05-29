@@ -245,7 +245,7 @@ exports.getSolution = function getSolution(idError, callback){
 	  else{
 	    var problem = result.rows[0].problem;
 	    if ( problem == "" ){
-		client.query( "SELECT count(tags[1]-> 'mining_resource') AS count, (tags[1]-> 'mining_resource' AS mining FROM validations WHERE error_type = 108 error_id = " + idError + " GROUP BY mining ORDER BY count desc, mining DESC,", function (err, result){ 
+		client.query( "SELECT count(tags[1]-> 'landuse') AS count, (tags[1]-> 'landuse' AS mining FROM validations WHERE error_type = 108 error_id = " + idError + " GROUP BY mining ORDER BY count desc, mining desc", function (err, result){ 
 		  if(err){
 		    console.log("error getting solution of error112 "+err);
 		    client.end();
@@ -258,7 +258,7 @@ exports.getSolution = function getSolution(idError, callback){
 		});
 	    }
 	    else if ( problem == "Borrar elemento" ){
-	      client.query( "SELECT GeometryType(geom) as type, * FROM error_108 WHERE idError = "+idError+";", function (err, result){
+	      client.query( "SELECT GeometryType(geom[1]) as type, * FROM error_108 WHERE idError = "+idError+";", function (err, result){
 		  if(err){
 		    console.log("error getting solution of error108 "+err);
 		    client.end();

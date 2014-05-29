@@ -235,22 +235,15 @@ exports.getSolution = function getSolution(idError, callback){
 	if(err) {
 	  return console.error('could not connect to postgres', err);
 	}
-	client.query( "SELECT problem, COUNT(*)  FROM validations WHERE Error_type = 118 group by problem", function(err, result){
+	client.query( "SELECT problem, COUNT(*)  FROM validations WHERE error_type = 118 AND error_id = " + idError + " GROUP BY problem ORDER BY count desc, problem desc", function(err, result){
 	  if(err){
 	    console.log("error getting solution of error118 "+err);
 	    client.end();
 	  }
 	  else{
-	    var problem;
-	    var ant = -1;
-	    for( var i = 0; i < result.rows.length; i++){
-	      if(result.rows[i].count > ant){
-		ant = result.rows[i].count ;
-		problem = result.rows[i].problem;
-	      }
-	    }
+	    var problem = result.rows[0].problem;
 	    if ( problem == "" ){
-		cclient.query( "SELECT count(tags->'waterway') AS waterway, count(tags->'natural') AS natural, count(tags->'leisure') AS leisure, count(tags->'amenity') AS amenity, count(tags->'emergency') AS emergency, count(tags->'landuse') AS landuse, count(tags->'man_made') AS man_made, count(tags->'mooring') AS mooring  FROM validations WHERE error_type = 118  ", function (err, result){ 
+		cclient.query( "SELECT count(tags->'waterway') AS waterway, count(tags->'natural') AS natural, count(tags->'leisure') AS leisure, count(tags->'amenity') AS amenity, count(tags->'emergency') AS emergency, count(tags->'landuse') AS landuse, count(tags->'man_made') AS man_made, count(tags->'mooring') AS mooring  FROM validations WHERE error_type = 118 AND error_id = " + idError + "; ", function (err, result){ 
 		    if(err){
 		      console.log("error getting solution of error118 "+err);
 		      client.end();
@@ -266,28 +259,21 @@ exports.getSolution = function getSolution(idError, callback){
 		      else if ( number = result.rows[0].landuse) name = "landuse";
 		      else if ( number = result.rows[0].man_made) name = "man_made";
 		      else if ( number = result.rows[0].mooring) name = "mooring";
-		      client.query( "SELECT (tags->'"+name+"') AS name, count(tags->'"+name+"') AS count FROM validations WHERE error_type = 118 and (tags->'"+name+"') is not null GROUP BY (tags->'"+name+"')", function (err, result){
+		      client.query( "SELECT (tags->'"+name+"') AS name, count(tags->'"+name+"') AS count FROM validations WHERE error_type = 118 AND error_id = " + idError + " AND (tags->'"+name+"') is not null GROUP BY (tags->'"+name+"') ORDER BY count desc", function (err, result){
 			  if(err){
 			    console.log("error getting solution of error118 "+err);
 			    client.end();
 			  }
 			  else{
-			  
-			  var ant = -1;
-			  var name = "";
-			  for( var j = 0; j < result.rows.length; j++){
-			    if(result.rows[i].count > ant){
-			      ant = result.rows[i].count ;
-			      name = result.rows[i].name;
-			    }
-			  }
+			  var name = result.rows[0].name;
+			  console.log("solución error 118, id = " + idError + ", " + name);
 			}
 		      });
 		    }
 		  });
 	    }
 	    else if ( problem == "Borrar elemento" ){
-	      client.query( "SELECT GeometryType(geom) as type, * FROM error_118 WHERE idError = "+idError+";", function (err, result){
+	      client.query( "SELECT GeometryType(geom[1]) as type, * FROM error_118 WHERE idError = "+idError+";", function (err, result){
 		  if(err){
 		    console.log("error getting solution of error118 "+err);
 		    client.end();

@@ -232,22 +232,15 @@ exports.getSolution = function getSolution(idError, callback){
 	if(err) {
 	  return console.error('could not connect to postgres', err);
 	}
-	client.query( "SELECT problem, COUNT(*)  FROM validations WHERE Error_type = 131 group by problem", function(err, result){
+	client.query( "SELECT problem, COUNT(*)  FROM validations WHERE error_type = 113 AND error_id = " + idError + " GROUP BY problem ORDER BY count desc, problem desc", function(err, result){
 	  if(err){
 	    console.log("error getting solution of error113 "+err);
 	    client.end();
 	  }
 	  else{
-	    var problem;
-	    var ant = -1;
-	    for( var i = 0; i < result.rows.length; i++){
-	      if(result.rows[i].count > ant){
-		ant = result.rows[i].count ;
-		problem = result.rows[i].problem;
-	      }
-	    }
+	     var problem = result.rows[0].problem;
 	    if ( problem == "" ){
-		client.query( "SELECT count(tags->'amenity') AS amenity, count(tags->'site') AS site, count(tags->'access') AS access, count(tags->'service') AS service, count(tags->'building') AS building, count(tags->'landuse') AS landuse FROM validations WHERE error_type = 113 ", function (err, result){ 
+		client.query( "SELECT count(tags->'amenity') AS amenity, count(tags->'site') AS site, count(tags->'access') AS access, count(tags->'service') AS service, count(tags->'building') AS building, count(tags->'landuse') AS landuse FROM validations WHERE error_type = 113 AND error_id = " + idError + " ", function (err, result){ 
 		    if(err){
 		      console.log("error getting solution of error114 "+err);
 		      client.end();
@@ -261,30 +254,23 @@ exports.getSolution = function getSolution(idError, callback){
 		      else if ( number = result.rows[0].service) name = "service";
 		      else if ( number = result.rows[0].building) name = "building";
 		      else if ( number = result.rows[0].landuse) name = "landuse";
-		      client.query( "SELECT (tags->'"+name+"') AS name, count(tags->'"+name+"') AS count FROM validations WHERE error_type = 113 and (tags->'"+name+"') is not null GROUP BY (tags->'"+name+"')", function (err, result){
+		      client.query( "SELECT (tags->'"+name+"') AS name, count(tags->'"+name+"') AS count FROM validations WHERE error_type = 113 AND error_id = " + idError + " AND (tags->'"+name+"') is not null GROUP BY (tags->'"+name+"') ORDER BY count desc", function (err, result){
 			  if(err){
-			    console.log("error getting solution of error114 "+err);
+			    console.log("error getting solution of error113 "+err);
 			    client.end();
 			  }
 			  else{
-			  
-			  var ant = -1;
-			  var name = "";
-			  for( var j = 0; j < result.rows.length; j++){
-			    if(result.rows[i].count > ant){
-			      ant = result.rows[i].count ;
-			      name = result.rows[i].name;
-			    }
-			  }
+			  var  name = result.rows[0].name;
+			  console.log("Solución error 113, id = " + idError + ", " + name);
 			}
 		      });
 		    }
 		  });
 	    }
 	    else if ( problem == "Borrar elemento" ){
-	      client.query( "SELECT GeometryType(geom) as type, * FROM error_113 WHERE idError = "+idError+";", function (err, result){
+	      client.query( "SELECT GeometryType(geom[1]) as type, * FROM error_113 WHERE idError = "+idError+";", function (err, result){
 		  if(err){
-		    console.log("error getting solution of error113 "+err);
+		    console.log("error getting solution of error114 "+err);
 		    client.end();
 		  }
 		  else {
