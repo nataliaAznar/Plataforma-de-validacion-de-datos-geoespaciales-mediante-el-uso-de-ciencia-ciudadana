@@ -40,6 +40,12 @@ var express = require("/usr/lib/node_modules/express"),
         });
     });
     
+     app.get('/upload', function(req, res) {
+        fs.readFile(__dirname + '/public/upload.html', 'utf8', function(err, text){
+            res.send(text);
+        });
+    });
+    
     //The parameters are sent on the body of the request
     app.get('/errors/near', function(req, res){
       var lat = req.query.lat,
