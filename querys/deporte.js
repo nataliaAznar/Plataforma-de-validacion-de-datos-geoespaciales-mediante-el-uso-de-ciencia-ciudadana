@@ -181,7 +181,7 @@ exports.getSolution = function getSolution(idError, callback){
 		});
 	    }
 	    else if ( problem == "Borrar elemento" ){
-	      client.query( "SELECT GeometryType(geom[1]) as type, * FROM error_102 WHERE idError = "+idError+";", function (err, result){
+	      client.query( "SELECT GeometryType(geom[1]) as type, * FROM error_102 WHERE \"idError\" = "+idError+";", function (err, result){
 		  if(err){
 		    console.log("error getting solution of error102 "+err);
 		    client.end();
@@ -231,7 +231,7 @@ exports.getSolution = function getSolution(idError, callback){
 	    }
 	    
 	    else if ( problem == "Elemento correcto" ){
-	      client.query( "DELETE FROM error_102 WHERE idError = "+idError+";", function (err, result){
+	      client.query( "DELETE FROM error_102 WHERE \"idError\" = "+idError+";", function (err, result){
 		  if(err){
 		    console.log("error getting solution of error102 "+err);
 		    client.end();

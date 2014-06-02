@@ -214,7 +214,7 @@ exports.getSolution = function getSolution(idError, callback){
 	      //buscar el que más se repite en una y el que más se repite en otra por separado
 	    }
 	    else if ( problem == "Borrar elemento" ){
-	      client.query( "SELECT GeometryType(geom[1]) as type, GeometryType(geom[2]) as type2, * FROM error_120 WHERE idError = "+idError+";", function (err, result){
+	      client.query( "SELECT GeometryType(geom[1]) as type, GeometryType(geom[2]) as type2, * FROM error_120 WHERE \"idError\" = "+idError+";", function (err, result){
 		  if(err){
 		    console.log("error getting solution of error120 "+err);
 		    client.end();
@@ -285,7 +285,7 @@ exports.getSolution = function getSolution(idError, callback){
 	    }
 	    
 	    else if ( problem == "Elemento correcto" ){
-	      client.query( "DELETE FROM error_120 WHERE idError = "+idError+";", function (err, result){
+	      client.query( "DELETE FROM error_120 WHERE \"idError\" = "+idError+";", function (err, result){
 		  if(err){
 		    console.log("error getting solution of error120 "+err);
 		    client.end();

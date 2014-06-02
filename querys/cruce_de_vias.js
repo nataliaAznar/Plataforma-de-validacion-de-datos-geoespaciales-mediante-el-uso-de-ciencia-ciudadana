@@ -193,6 +193,7 @@ exports.getSolution = function getSolution(idError, callback){
 	  else{
 	    var problem = result.rows[0].problem;
 	    if ( problem == "" ){
+	      //comprobar si se a eliminado alguna geometría
 	      client.query("SELECT array_length(geom,1 ) as size, count(array_length(geom,1 )) as count FROM validations WHERE error_type = 101 AND error_id = " + idError + " GROUP BY array_length(geom,1 ) ORDER BY count desc;", function(err, result){
 		if(err){
 		  client.end();
@@ -204,24 +205,91 @@ exports.getSolution = function getSolution(idError, callback){
 		  client.end();
 		 }
 		 else{
-		   client.query("SELECT (tags[1]->'layer') AS layer, count(tags[1]->'layer') AS count FROM validations WHERE  error_type = 101 AND error_id = " + idError + " GROUP BY layer ORDER BY count des", function(err, result){
+		   //comprobar si se han añadido los tags "layer"
+		   client.query("SELECT (tags[1]->'layer') AS layer, count(tags[1]?'layer') AS count FROM validations WHERE  error_type = 101 AND error_id = " + idError + " GROUP BY layer ORDER BY count des", function(err, result){
 		    if (err){
 			client.end();
 			console.log("error "+err);
 		    }
 		    else{
 		      var layer = result.rows[0].layer;
-		      client.query("SELECT (tags[2]->'layer') AS layer, count(tags[2]->'layer') AS count FROM validations WHERE  error_type = 101 AND error_id = " + idError + " GROUP BY layer ORDER BY count des", function(err, result){
+		      client.query("SELECT (tags[2]->'layer') AS layer, count(tags[2]?'layer') AS count FROM validations WHERE  error_type = 101 AND error_id = " + idError + " GROUP BY layer ORDER BY count des", function(err, result){
 			  if (err){
 			      client.end();
 			      console.log("error "+err);
 			  }
 			  else{
 			    var layer2 = result.rows[0].layer;
+			    if( layer || layer2){
 			    console.log("Solución error 101, id = " + idError + ", layer1 = " + layer + ", layer2 = " + layer1);
 			    client.end();
-			    //falta comprobar la geometría
+			    }
+			    else{
+			    //hayar el punto de unión de las geometrías
+			      client.query("SELECT osm_id, ST_AsText(ST_Intersection(geom[1], geom[2])) AS point, ST_AsText(geom[1]) AS geom1, ST_AsText(geom[2]) AS geom[2] FROM validations WHERE error_type = 101 AND error_id = " + idError + ";", function(err, result)  {
+				  if(err){
+				    console.log("error " + err);
+				    client.end();
+				  }
+				  else{
+				    var point = result.rows[0].point;
+				    var geom1 = result.rows[0].geom1;
+				    var geom2 = result.rows[0].geom2;
+				    var id1 = result.rows[0].osm_id[1];
+				    var id2 = result.rows[0].osm_id[2];
+				    //añadir el punto de unión a las geometrías
+				    client.query("SELECT ST_AsText( ST_LineMerge(ST_Union(ST_Line_Substring(line, 0, ST_Line_Locate_Point(line, point)),ST_Line_Substring(line, ST_Line_Locate_Point(line, point), 1)))) as geom\
+					  FROM  ST_GeomFromText('" + geom1 + "') as line, \
+						ST_GeomFromText('" + point + "') as point;", function(err, result){
+				     if(err){
+				      console.log("error " + err);
+				      client.end();
+				     }
+				     else{
+				       geom1 = result.rows[0].geom;
+				       client.query("SELECT ST_AsText( ST_LineMerge(ST_Union(ST_Line_Substring(line, 0, ST_Line_Locate_Point(line, point)),ST_Line_Substring(line, ST_Line_Locate_Point(line, point), 1)))) as geom\
+					  FROM  ST_GeomFromText('" + geom2 + "') as line, \
+						ST_GeomFromText('" + point + "') as point;", function(err, result){
+					if(err){
+					 console.log("error ", err);
+					 client.end();
+					}
+					else{
+					  geom2 = result.rows[0].geom;
+					  //actualizar tablas ¿habría que insertar el punto en la tabla nodes?
+					  console.log("solución error 101, id = " + idError + ", se cruzan");
+					    client.query("UPDATE validator_lines SET way =  ST_GeomFromText" + geom1 + " WHERE id = " + id1 + ";", function(err, result){
+					      if(err){
+						console.log("erroe "+err);
+						client.end();
+					      }
+					      else{
+						client.query("UPDATE validator_lines SET way =  ST_GeomFromText" + geom2 + " WHERE id = " + id2 + ";", function(err, result){
+						  if(err){
+						    console.log("erroe "+err);
+						    client.end();
+						  }
+						  else{
+						    //eliminar de las tablas de error y validación
+						    eliminarTablaError(idError, client, function(){
+						      client.end();
+						    });
+						  }
+						});
+					      }
+					    });
+					  
+					}
+				       });
+				       
+				     }
+				    });
+				  }
+			      });
+			    }
+			    
 			  }
+		      });
 		    }
 		   });
 		 }
@@ -229,7 +297,7 @@ exports.getSolution = function getSolution(idError, callback){
 	      });
 	    }
 	    else if ( problem == "Borrar elemento" ){
-	      client.query( "SELECT GeometryType(geom[1]) as type, GeometryType(geom[2]) as type2, * FROM error_101 WHERE idError = "+idError+";", function (err, result){
+	      client.query( "SELECT GeometryType(geom[1]) as type, GeometryType(geom[2]) as type2, * FROM error_101 WHERE \"idError\" = "+idError+";", function (err, result){
 		  if(err){
 		    console.log("error getting solution of error101 "+err);
 		    client.end();
@@ -253,25 +321,11 @@ exports.getSolution = function getSolution(idError, callback){
 			client.end();
 		      }
 		      else {
-			client.query("DELETE FROM error_101 WHERE \"idError\" = "+idError+";", function(err, result){
-			   if(err){
-			      console.log("error getting solution of error101 "+err);
-			      client.end();
-			    }
-			    else {
-			      client.query("DELETE FROM validations WHERE error_id = "+idError+" AND error_type = 101;", function(err, result){
-				  if(err){
-				    console.log("error getting solution of error101 "+err);
-				    client.end();
-				  }
-				  else {
-				   firstEnd = 1;
-				    if( secondEnd == 1)
-				    client.end();
-				  }
-			      });
-			    }
-			});
+			eliminarTablaError(idError, client, function(){
+			  firstEnd = 1;
+			  if( secondEnd == 1)
+			    client.end();
+			}
 		      }
 		    });
 		    table = "";
@@ -300,23 +354,33 @@ exports.getSolution = function getSolution(idError, callback){
 	    }
 	    
 	    else if ( problem == "Elemento correcto" ){
-	      client.query( "DELETE FROM error_101 WHERE idError = "+idError+";", function (err, result){
-		  if(err){
-		    console.log("error getting solution of error101 "+err);
-		    client.end();
-		  }
-		  else {
-		    client.query( "DELETE FROM validations WHERE error_id = "+idError+" AND error_type = 101  ;", function (err, result){
-			if(err){
-			  console.log("error getting solution of error101 "+err);
-			  client.end();
-			}
-			else client.end();
-		    });
-		  }
+	      eliminarTablaError(idError, client, function(){
+		client.end();
 	      });
 	    }
 	  }
 	});
   });
+}
+
+//eliminar elemento de las tablas de error y validación
+function eliminarTablaError(idError, client, callback){
+  client.query("DELETE FROM error_101 WHERE \"idError\" = "+idError+";", function(err, result){
+	  if(err){
+	    console.log("error getting solution of error101 "+err);
+	    callback();
+	  }
+	  else {
+	    client.query("DELETE FROM validations WHERE error_id = "+idError+" AND error_type = 101;", function(err, result){
+		if(err){
+		  console.log("error getting solution of error101 "+err);
+		  callback();
+		}
+		else {
+		  callback();
+		}
+	    });
+	  }
+      });
+  
 }

@@ -290,17 +290,73 @@ exports.getSolution = function getSolution(idError, callback){
 	  else{
 	    var problem = result.rows[0].problem;
 	    if ( problem == "" ){
-		client.query("SELECT ST_IsClosed(geom[1]) as closed, count (ST_IsClosed(geom[1])) FROM validations WHERE Error_type = 100 AND error_id = " + idError + " GROUP BY ST_IsClosed(geom[1]) ORDER BY count desc", function(err, result){
+		client.query("SELECT ST_IsClosed(geom[1]) as closed, count (ST_IsClosed(geom[1])) FROM validations WHERE error_type = 100 AND error_id = " + idError + " GROUP BY ST_IsClosed(geom[1]) ORDER BY count desc", function(err, result){
 		  ir(err){
 		    console.log("error "+err);
 		    client.end();
 		  }
 		  else{
 		    if(result.rows[0].closed){
-		      
+		      //intersección de todos
+		      client.query(" SELECT geom[1] as geometry FROM validations WHERE error_type = 100 AND error_id = " + idError + "", function(err, result){
+			if (err){
+			  console.log(err);
+			  client.end();
+			}
+			else{
+			  var geometries = [];
+			  for( var row in result){
+			      geometries.push(row.geometry);
+			  }
+			  var geom = geometries.shift();
+			  intersection(geometries, geom,  function(g){
+			    //update en tabla line o insert en tabla de poligonos?
+			    client.query("UPDATE SET WHERE ", function(errm result){
+			      if(err){
+				console.log("error " + err);
+				client.end();
+			      }
+			    else{
+			      eliminarTablaError(idError, client, function(){
+				client.end();
+			      });
+			    }
+			    });
+			  });
+			  
+			}
+		      });
 		    }
 		    else{
-		      
+		      //hacer un count de los tags y coger el que más veces esté
+		      client.query("SELECT count(tags[1]) as count, tags[1] as tags FROM validations WHERE error_type = 100 AND error_id = " + idError + " GROUP BY tags[1] ORDER BY count desc", function(err, result){
+			if(err){
+			  console.log("error " + err);
+			  client.end();
+			  else{
+			    var tags = result.rows[0].tags;
+			    client.query("SELECT osm_id FROM error100 WHERE \"idError\" = "+idError+";", function(err, result){
+			      if(err){
+				consol.log("error "+ err);
+				client.end();
+			      }
+			      else{
+				var id = result.rows[0].osm_id[1];
+				client.query("UPDATE validator_lines SET tags = " + tags + "::hstore WHERE id = " + id + ";", function(err, result){
+				  if(err){
+				   console.log("error " + err);
+				   client.end();
+				  }
+				  else{
+				    eliminarTablaError(idError, client, function(){
+				      client.end();
+				    });
+				  }
+				});
+			      }
+			    });
+			  }
+			});
 		    }
 		    
 		  client.end();
@@ -308,7 +364,7 @@ exports.getSolution = function getSolution(idError, callback){
 		});
 	    }
 	    else if ( problem == "Borrar elemento" ){
-	      client.query( "SELECT GeometryType(geom[1]) as type, * FROM error_100 WHERE idError = "+idError+";", function (err, result){
+	      client.query( "SELECT GeometryType(geom[1]) as type, * FROM error_100 WHERE \"idError\" = "+idError+";", function (err, result){
 		  if(err){
 		    console.log("error getting solution of error100 "+err);
 		    client.end();
@@ -333,22 +389,8 @@ exports.getSolution = function getSolution(idError, callback){
 			client.end();
 		      }
 		      else {
-			client.query("DELETE FROM error_100 WHERE \"idError\" = "+idError+";", function(err, result){
-			   if(err){
-			      console.log("error getting solution of error100 "+err);
-			      client.end();
-			    }
-			    else {
-			      client.query("DELETE FROM validations WHERE error_id = "+idError+" AND error_type = 100;", function(err, result){
-				  if(err){
-				    console.log("error getting solution of error100 "+err);
-				    client.end();
-				  }
-				  else {
-				    client.end();
-				  }
-			      });
-			    }
+			eliminarTablaError(idError, client, function(){
+			  client.end();
 			});
 		      }
 		    });
@@ -357,23 +399,47 @@ exports.getSolution = function getSolution(idError, callback){
 	    }
 	    
 	    else if ( problem == "Elemento correcto" ){
-	      client.query( "DELETE FROM error_100 WHERE idError = "+idError+";", function (err, result){
-		  if(err){
-		    console.log("error getting solution of error100 "+err);
-		    client.end();
-		  }
-		  else {
-		    client.query( "DELETE FROM validations WHERE error_id = "+idError+" AND error_type = 100  ;", function (err, result){
-			if(err){
-			  console.log("error getting solution of error100 "+err);
-			  client.end();
-			}
-			else client.end();
-		    });
-		  }
+	      eliminarTablaError(idError, client, function(){
+		client.end();
 	      });
 	    }
 	  }
 	});
   });
+}
+
+
+
+function intersection(geometries, geom, callback){
+  var g = geometries.shift();
+  client.query("SELECT st_astext(st_intersection(" + geom + ", " + g + ")) as geom;", function(err, result){
+    if(err){
+      console.log("error " + err);
+      client.end();
+    }
+    else{
+      geom = result.rows[0].geom;
+      if(geometries.length) intersection(geometries, geom, callback);
+      else callback(geom);
+    }
+  });  
+}
+
+//eliminar elemento de las tablas de error y validación
+function eliminarTablaError(idError, client, callback){
+  client.query( "DELETE FROM error_100 WHERE \"idError\" = "+idError+";", function (err, result){
+	if(err){
+	  console.log("error getting solution of error100 "+err);
+	  client.end();
+	}
+	else {
+	  client.query( "DELETE FROM validations WHERE error_id = "+idError+" AND error_type = 100  ;", function (err, result){
+	      if(err){
+		console.log("error getting solution of error100 "+err);
+		client.end();
+	      }
+	      else client.end();
+	  });
+	}
+    });
 }

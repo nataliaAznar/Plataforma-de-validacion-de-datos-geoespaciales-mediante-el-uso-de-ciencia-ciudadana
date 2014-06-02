@@ -185,14 +185,28 @@ exports.getSolution = function getSolution(idError, callback){
 		  client.end();
 		 }
 		 else{
-		   //comprobar geometría
+		   client.query("SELECT st_intersects(geom[1], geom[2]) as intersects,  count (st_intersects(geom[1], geom[2]))  FROM validations WHERE error_tipe = 109 AND error_id = " + idError + " GROUP BY st_intersects(geom[1], geom[2]) ORDER BY count desc;", function(err, result){
+		     if(err){
+		       console.log("error " + err);
+		       client.end();
+		       else{
+			 if(result.rows[0].intersects){
+			   //alargo una hasta el punto más cercano de la otra? ¿Como sé que linea tengo que alargar?
+			   //encontrar el puento más cercano de intersección
+			   client.query(
+			 }
+			 else{
+			  console.log("solución error 109, id = "+idError+", no se cortan"); 
+			 }
+		       }
+		     });
 		 }
 	      }
 	      });
 		
 	    }
 	    else if ( problem == "Borrar elemento" ){
-	      client.query( "SELECT GeometryType(geom[1]) as type, GeometryType(geom[2]) as type2, * FROM error_109 WHERE idError = "+idError+";", function (err, result){
+	      client.query( "SELECT GeometryType(geom[1]) as type, GeometryType(geom[2]) as type2, * FROM error_109 WHERE \"idError\" = "+idError+";", function (err, result){
 		  if(err){
 		    console.log("error getting solution of error109 "+err);
 		    client.end();
@@ -216,24 +230,10 @@ exports.getSolution = function getSolution(idError, callback){
 			client.end();
 		      }
 		      else {
-			client.query("DELETE FROM error_109 WHERE \"idError\" = "+idError+";", function(err, result){
-			   if(err){
-			      console.log("error getting solution of error109 "+err);
-			      client.end();
-			    }
-			    else {
-			      client.query("DELETE FROM validations WHERE error_id = "+idError+" AND error_type = 109;", function(err, result){
-				  if(err){
-				    console.log("error getting solution of error109 "+err);
-				    client.end();
-				  }
-				  else {
-				    firstEnd = 1;
+			eliminarTablaError(idError, client,function(){
+			  firstEnd = 1;
 				    if( secondEnd == 1)
 				    client.end();
-				  }
-			      });
-			    }
 			});
 		      }
 		    });
@@ -263,23 +263,30 @@ exports.getSolution = function getSolution(idError, callback){
 	    }
 	    
 	    else if ( problem == "Elemento correcto" ){
-	      client.query( "DELETE FROM error_109 WHERE idError = "+idError+";", function (err, result){
-		  if(err){
-		    console.log("error getting solution of error109 "+err);
-		    client.end();
-		  }
-		  else {
-		    client.query( "DELETE FROM validations WHERE error_id = "+idError+" AND error_type = 109  ;", function (err, result){
-			if(err){
-			  console.log("error getting solution of error109 "+err);
-			  client.end();
-			}
-			else client.end();
-		    });
-		  }
+	      eliminarTablaError(idError, client, function(){
+		client.end();
 	      });
 	    }
 	  }
 	});
+  });
+}
+
+
+function eliminarTablaError(idError, client, callback){
+    client.query( "DELETE FROM error_109 WHERE \"idError\" = "+idError+";", function (err, result){
+      if(err){
+	console.log("error getting solution of error109 "+err);
+	callback();
+      }
+      else {
+	client.query( "DELETE FROM validations WHERE error_id = "+idError+" AND error_type = 109  ;", function (err, result){
+	    if(err){
+	      console.log("error getting solution of error109 "+err);
+	      callback();
+	    }
+	    else callbak();
+	});
+      }
   });
 }
