@@ -44,7 +44,7 @@ exports.createTable = function createTable(callback){
 			  client.end();
 			}
 			else{
-			  client.query( "INSERT INTO error VALUES("+numError+", '"+errorDesc+"', '"+title+"', '"+tableName+"');" , function(err, result){
+			  client.query( "INSERT INTO error VALUES("+numError+", '"+errorDesc+"', '"+title+"', '"+tableName+"', 'nodo_extremo_via_proximo_otro_vial.js');" , function(err, result){
 			    if(err) console.log("error insert "+tableName+", erro: "+err);
 			    callback();
 			    client.end();
@@ -162,10 +162,12 @@ exports.test = function test(token, callback){
 exports.getSolution = function getSolution(idError, callback){
   client.connect(function(err) {
 	if(err) {
+	  callback();
 	  return console.error('could not connect to postgres', err);
 	}
 	client.query( "SELECT problem, COUNT(*)  FROM validations WHERE error_type = 110 AND error_id = " + idError + "GROUP BY problem ORDER BY count desc, problem desc", function(err, result){
 	  if(err){
+	    callback();
 	    console.log("error getting solution of error110 "+err);
 	    client.end();
 	  }
@@ -174,15 +176,18 @@ exports.getSolution = function getSolution(idError, callback){
 	    if ( problem == "" ){
 	      client.query("SELECT array_length(geom,1 ) as size, count(array_length(geom,1 )) as count FROM validations WHERE error_type = 110 AND error_id = " + idError + " GROUP BY array_length(geom,1 ) ORDER BY count desc;", function(err, result){
 		if(err){
+		  callback();
 		  client.end();
 		  console.log("error "+err);
 		}
 	      else{
 		if(result.rows[0].size ==1){
 		  console.log("Solución error 110, id = " + idError + ", una geometría borrada ");
+		  callback();
 		  client.end();
 		 }
 		 else{
+		   callback();
 		   //comprobar geometría
 		 }
 	      }
@@ -191,6 +196,7 @@ exports.getSolution = function getSolution(idError, callback){
 	    else if ( problem == "Borrar elemento" ){
 	      client.query( "SELECT GeometryType(geom[1]) as type, GeometryType(geom[2]) as type2, * FROM error_110 WHERE \"idError\" = "+idError+";", function (err, result){
 		  if(err){
+		    callback();
 		    console.log("error getting solution of error110 "+err);
 		    client.end();
 		  }
@@ -226,8 +232,10 @@ exports.getSolution = function getSolution(idError, callback){
 				  }
 				  else {
 				    firstEnd = 1;
-				    if( secondEnd == 1)
+				    if( secondEnd == 1){
 				    client.end();
+				    callback();
+				    }
 				  }
 			      });
 			    }
@@ -246,13 +254,16 @@ exports.getSolution = function getSolution(idError, callback){
 		    }
 		    client.query( "DELETE FROM validator_"+table+" WHERE id = "+id+";", function(err, result){
 		      if(err){
+			callback();
 			console.log("error getting solution of error107 "+err);
 			client.end();
 		      }
 		      else {
 			secondEnd = 1;
-			if(firstEnd == 1 )
+			if(firstEnd == 1 ){
+			  callback();
 			client.end();
+			}
 		      }
 		    });
 		  }
@@ -268,10 +279,14 @@ exports.getSolution = function getSolution(idError, callback){
 		  else {
 		    client.query( "DELETE FROM validations WHERE error_id = "+idError+" AND error_type = 110  ;", function (err, result){
 			if(err){
+			  callback();
 			  console.log("error getting solution of error110 "+err);
 			  client.end();
 			}
-			else client.end();
+			else{
+			  callback();
+			  client.end();
+			}
 		    });
 		  }
 	      });

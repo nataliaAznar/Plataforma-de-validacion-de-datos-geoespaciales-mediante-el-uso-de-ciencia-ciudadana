@@ -45,7 +45,7 @@ exports.createTable = function createTable(callback){
 			  client.end();
 			}
 			else{
-			  client.query( "INSERT INTO error VALUES("+numError+", '"+errorDesc+"', '"+title+"', '"+tableName+"');" , function(err, result){
+			  client.query( "INSERT INTO error VALUES("+numError+", '"+errorDesc+"', '"+title+"', '"+tableName+"', 'vias_con_nombres_iguales.js');" , function(err, result){
 			    if(err) console.log("error insert "+tableName+", erro: "+err);
 			    callback();
 			    client.end();
@@ -188,30 +188,51 @@ exports.getSolution = function getSolution(idError, callback){
 	  if(err){
 	    console.log("error getting solution of error120 "+err);
 	    client.end();
+	    callback();
 	  }
 	  else{
 	     var problem = result.rows[0].problem;
 	    if ( problem == "" ){
-		client.query("SELECT ( tags[1]->'name' ) AS name, COUNT( tags[1]->'name' ) AS count FROM validations WHERE error_type = 120 AND error_id = " + idError + " GROUP BY ( tags[1]->'name' ) ORDER BY count desc;", function (err, result){
-		  if(err){
-		    console.log("error "+err);
-		    client.end();
-		  }
-		  else{
-		      var name = result.rows[0].name;
-		      client.query("SELECT ( tags[2]->'name' ) AS name, COUNT( tags[2]->'name' ) AS count FROM validations WHERE error_type = 120 AND error_id = " + idError + " GROUP BY ( tags[2]->'name' ) ORDER BY count desc;", function (err, result){
-			    if(err){
-			      console.log("error "+err);
-			      client.end();
-			    }
-			    else{
-				var name2 = result.rows[0].name;
-				console.log("solución error 120, id = " + idError + ", " + name + ", " + name2);
-			    }
-		  }
-		});
-	      
-	      //buscar el que más se repite en una y el que más se repite en otra por separado
+	      client.query("SELECT array_length(geom,1 ) as size, count(array_length(geom,1 )) as count FROM validations WHERE error_type = 110 AND error_id = " + idError + " GROUP BY array_length(geom,1 ) ORDER BY count desc;", function(err, result){
+		if(err){
+		  callback();
+		  client.end();
+		  console.log("error "+err);
+		}
+	      else{
+		if(result.rows[0].size ==1){
+		  console.log("Solución error 110, id = " + idError + ", una geometría borrada ");
+		  callback();
+		  client.end();
+		 }
+		 else{
+		   //buscar el que más se repite en una y el que más se repite en otra por separado
+		    client.query("SELECT ( tags[1]->'name' ) AS name, COUNT( tags[1]->'name' ) AS count FROM validations WHERE error_type = 120 AND error_id = " + idError + " GROUP BY ( tags[1]->'name' ) ORDER BY count desc;", function (err, result){
+		      if(err){
+			console.log("error "+err);
+			client.end();
+			callback();
+		      }
+		      else{
+			  var name = result.rows[0].name;
+			  client.query("SELECT ( tags[2]->'name' ) AS name, COUNT( tags[2]->'name' ) AS count FROM validations WHERE error_type = 120 AND error_id = " + idError + " GROUP BY ( tags[2]->'name' ) ORDER BY count desc;", function (err, result){
+				if(err){
+				  console.log("error "+err);
+				  client.end();
+				  callback();
+				}
+				else{
+				    var name2 = result.rows[0].name;
+				    console.log("solución error 120, id = " + idError + ", " + name + ", " + name2);
+				    callback();
+				}
+		      
+			    });
+		      }
+		    });
+		 }
+	      }
+	      });
 	    }
 	    else if ( problem == "Borrar elemento" ){
 	      client.query( "SELECT GeometryType(geom[1]) as type, GeometryType(geom[2]) as type2, * FROM error_120 WHERE \"idError\" = "+idError+";", function (err, result){
@@ -232,31 +253,20 @@ exports.getSolution = function getSolution(idError, callback){
 		      case "POLYGON":
 			table = "polygons"; break;
 		    }
-		    client.query( "DELETE FROM validator_"+table+" WHERE id = "+id+";", function(err, result){
+		    client.query( "DELETE FROM validator_"+table+" WHERE id_table = "+id+";", function(err, result){
 		      if(err){
 			console.log("error getting solution of error120 "+err);
 			client.end();
 		      }
 		      else {
-			client.query("DELETE FROM error_120 WHERE \"idError\" = "+idError+";", function(err, result){
-			   if(err){
-			      console.log("error getting solution of error120 "+err);
-			      client.end();
-			    }
-			    else {
-			      client.query("DELETE FROM validations WHERE error_id = "+idError+" AND error_type = 120;", function(err, result){
-				  if(err){
-				    console.log("error getting solution of error120 "+err);
-				    client.end();
-				  }
-				  else {
-				    firstEnd = 1;
-				    if( secondEnd == 1)
-				    client.end();
-				  }
-			      });
-			    }
+			eliminarTablaError(idError, client, function(){
+			  firstEnd = 1;
+			  if( secondEnd == 1){
+			    client.end();
+			    callback();
+			  }
 			});
+			
 		      }
 		    });
 		     table = "";
@@ -269,15 +279,17 @@ exports.getSolution = function getSolution(idError, callback){
 		      case "POLYGON":
 			table = "polygons"; break;
 		    }
-		    client.query( "DELETE FROM validator_"+table+" WHERE id = "+id+";", function(err, result){
+		    client.query( "DELETE FROM validator_"+table+" WHERE id_table = "+id+";", function(err, result){
 		      if(err){
 			console.log("error getting solution of error107 "+err);
 			client.end();
 		      }
 		      else {
 			secondEnd = 1;
-			if(firstEnd == 1 )
+			if(firstEnd == 1 ){
 			client.end();
+			callback();
+			}
 		      }
 		    });
 		  }
@@ -285,23 +297,33 @@ exports.getSolution = function getSolution(idError, callback){
 	    }
 	    
 	    else if ( problem == "Elemento correcto" ){
-	      client.query( "DELETE FROM error_120 WHERE \"idError\" = "+idError+";", function (err, result){
-		  if(err){
-		    console.log("error getting solution of error120 "+err);
-		    client.end();
-		  }
-		  else {
-		    client.query( "DELETE FROM validations WHERE error_id = "+idError+" AND error_type = 120  ;", function (err, result){
-			if(err){
-			  console.log("error getting solution of error120 "+err);
-			  client.end();
-			}
-			else client.end();
-		    });
-		  }
+	      eliminarTablaError(idError, client, function(){
+		  client.end();
+		  callback();
 	      });
+	      
 	    }
 	  }
 	});
+  });
+}
+
+function eliminarTablaError(idError, client, callback){
+  client.query( "DELETE FROM error_120 WHERE \"idError\" = "+idError+";", function (err, result){
+      if(err){
+	console.log("error getting solution of error120 "+err);
+	client.end();
+      }
+      else {
+	client.query( "DELETE FROM validations WHERE error_id = "+idError+" AND error_type = 120  ;", function (err, result){
+	    if(err){
+	      console.log("error getting solution of error120 "+err);
+	      client.end();
+	    }
+	    else{
+	      callback();
+	    }
+	});
+      }
   });
 }

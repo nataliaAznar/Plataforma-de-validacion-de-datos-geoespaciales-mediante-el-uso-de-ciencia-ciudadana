@@ -45,7 +45,7 @@ exports.createTable = function createTable(callback){
 			  client.end();
 			}
 			else{
-			  client.query( "INSERT INTO error VALUES("+numError+", '"+errorDesc+"', '"+title+"', '"+tableName+"');" , function(err, result){
+			  client.query( "INSERT INTO error VALUES("+numError+", '"+errorDesc+"', '"+title+"', '"+tableName+"', 'tipo_de_comercio.js');" , function(err, result){
 			    if(err) console.log("error insert "+tableName+", erro: "+err);
 			    callback();
 			    client.end();
@@ -235,11 +235,13 @@ exports.getSolution = function getSolution(idError, callback){
   client.connect(function(err) {
 	if(err) {
 	  return console.error('could not connect to postgres', err);
+	  callback();
 	}
 	client.query( "SELECT problem, COUNT(*)  FROM validations WHERE error_type = 119 AND error_id = " + idError + " GROUP BY problem ORDER BY count desc, problem desc", function(err, result){
 	  if(err){
 	    console.log("error getting solution of error119 "+err);
 	    client.end();
+	    callback();
 	  }
 	  else{
 	     var problem = result.rows[0].problem;
@@ -248,10 +250,12 @@ exports.getSolution = function getSolution(idError, callback){
 		    if(err){
 		      console.log("error getting solution of error119 "+err);
 		      client.end();
+		      callback();
 		    }
 		    else{
 		      name = result.rows[0].shop;
-		      console.log("validación de error 119, id = " + idError + ", " + name + ")
+		      console.log("validación de error 119, id = " + idError + ", " + name );
+		      callback();
 		    }
 		  });
 	    }
@@ -279,21 +283,25 @@ exports.getSolution = function getSolution(idError, callback){
 		      if(err){
 			console.log("error getting solution of error119 "+err);
 			client.end();
+			callback();
 		      }
 		      else {
 			client.query("DELETE FROM error_119 WHERE \"idError\" = "+idError+";", function(err, result){
 			   if(err){
 			      console.log("error getting solution of error119 "+err);
 			      client.end();
+			      callback();
 			    }
 			    else {
 			      client.query("DELETE FROM validations WHERE error_id = "+idError+" AND error_type = 119;", function(err, result){
 				  if(err){
 				    console.log("error getting solution of error119 "+err);
 				    client.end();
+				    callback();
 				  }
 				  else {
 				    client.end();
+				    callback();
 				  }
 			      });
 			    }
@@ -316,7 +324,10 @@ exports.getSolution = function getSolution(idError, callback){
 			  console.log("error getting solution of error119 "+err);
 			  client.end();
 			}
-			else client.end();
+			else {
+			  client.end();
+			  callback();
+			}
 		    });
 		  }
 	      });

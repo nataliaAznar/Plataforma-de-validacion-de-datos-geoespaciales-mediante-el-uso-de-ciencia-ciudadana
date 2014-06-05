@@ -43,7 +43,7 @@ exports.createTable = function createTable(callback){
 			  client.end();
 			}
 			else{
-			  client.query( "INSERT INTO error VALUES("+numError+", '"+errorDesc+"', '"+title+"', '"+tableName+"');" , function(err, result){
+			  client.query( "INSERT INTO error VALUES("+numError+", '"+errorDesc+"', '"+title+"', '"+tableName+"', 'vias_sin_nombre.js');" , function(err, result){
 			    if(err) console.log("error insert "+tableName+", erro: "+err);
 			    callback();
 			    client.end();
@@ -151,25 +151,40 @@ exports.test = function test(token, callback){
 exports.getSolution = function getSolution(idError, callback){
   client.connect(function(err) {
 	if(err) {
-	  return console.error('could not connect to postgres', err);
+	  callback();
+	  console.log('could not connect to postgres', err);
 	}
 	client.query( "SELECT problem, COUNT(*) AS count FROM validations WHERE error_type = 121 AND error_id = " + idError + " GROUP BY problem ORDER BY count desc, problem desc", function(err, result){
 	  if(err){
+	    callback();
 	    console.log("error getting solution of error121 "+err);
 	    client.end();
 	  }
 	  else{
 	    var problem = result.rows[0].problem;
 	    if ( problem == "" ){
-		client.query( "SELECT (tags[1]->'name') AS name, count(tags[1]->'name') AS count FROM validations WHERE error_type = 121 AND error_id = " + idError + " AND (tags->'name') is not null GROUP BY name ORDER BY count desc, name desc ;", function (err, result){
+		client.query( "SELECT (tags[1]->'name') AS name, count(tags[1]->'name') AS count, id_osm FROM validations WHERE error_type = 121 AND error_id = " + idError + " AND (tags[1]->'name') is not null GROUP BY name ORDER BY count desc, name desc ;", function (err, result){
 		  if(err){
 		    console.log("error getting solution of error121 "+err);
 		    client.end();
+		    callback();
 		  }
 		  else{
 		    var name = result.rows[0].name;
-		    console.log("Resultado de la geometria error_type=121, error_id = "+idError+", "+name);
-		    client.end();
+		    var id = result.rows[0].id_osm;
+		    client.query("UPDATE validator_lines SET (tags->'name') = '" + name + "'WHERE id_table = " + id + " ", function(err, result){
+		      if(err){
+			console.log("error "+ err);
+			client.end();
+			callback();
+		      }
+		      else{
+			eliminarTablaError(idError, client, function(){
+			    console.log("Resultado de la geometria error_type=121, error_id = "+idError+", "+name);
+			    client.end();
+			    callback();
+			});
+		    });
 		  }
 		});
 	    }
@@ -178,6 +193,7 @@ exports.getSolution = function getSolution(idError, callback){
 		  if(err){
 		    console.log("error getting solution of error121 "+err);
 		    client.end();
+		    callback();
 		  }
 		  else {
 		    var table = "";
@@ -193,57 +209,51 @@ exports.getSolution = function getSolution(idError, callback){
 		      case "POLYGON":
 			table = "polygons"; break;
 		    }
-		    client.query( "DELETE FROM validator_"+table+" WHERE id = "+id[0]+" or id = "+id[1]+";", function(err, result){
+		    client.query( "DELETE FROM validator_"+table+" WHERE table_id = "+id[0]+" or table_id = "+id[1]+";", function(err, result){
 		      if(err){
 			console.log("error getting solution of error121 "+err);
 			client.end();
 		      }
-		      else {
-			client.query("DELETE FROM error_121 WHERE \"idError\" = "+idError+";", function(err, result){
-			   if(err){
-			      console.log("error getting solution of error121 "+err);
-			      client.end();
-			    }
-			    else {
-			      client.query("DELETE FROM validations WHERE error_id = "+idError+" AND error_type = 121;", function(err, result){
-				  if(err){
-				    console.log("error getting solution of error121 "+err);
-				    client.end();
-				  }
-				  else {
-				    console.log("Borrando geometria error_type=121, error_id = "+idError);
-				    client.end();
-				  }
-			      });
-			    }
-			});
+		      else {			
+			 eliminarTablaError(idError, client, function(){
+			    console.log("Borrando geometria error_type=121, error_id = "+idError);
+			    client.end();
+			    callback(); 
+			 });
 		      }
 		    });
 		  }
 	      });
 	    }
 	    
-	    else if ( problem == "Elemento correcto" ){
-	      client.query( "DELETE FROM error_121 WHERE \"idError\" = "+idError+";", function (err, result){
-		  if(err){
-		    console.log("error getting solution of error121 "+err);
-		    client.end();
-		  }
-		  else {
-		    client.query( "DELETE FROM validations WHERE error_id = "+idError+" AND error_type = 121  ;", function (err, result){
-			if(err){
-			  console.log("error getting solution of error121 "+err);
-			  client.end();
-			}
-			else{
-			  console.log("geometria error_type=121, error_id = "+idError+" is ok");
-			  client.end();
-			}
-		    });
-		  }
+	    else if ( problem == "Elemento correcto" ){	      
+	      eliminarTablaError(idError, client, function(){
+		  console.log("geometria error_type=121, error_id = "+idError+" is ok");
+		  client.end();
+		  callback();
 	      });
 	    }
 	  }
 	});
+  });
+}
+
+function eliminarTablaError(idError, client, callback){
+  client.query( "DELETE FROM error_121 WHERE \"idError\" = "+idError+";", function (err, result){
+      if(err){
+	console.log("error getting solution of error121 "+err);
+	client.end();
+      }
+      else {
+	client.query( "DELETE FROM validations WHERE error_id = "+idError+" AND error_type = 121  ;", function (err, result){
+	    if(err){
+	      console.log("error getting solution of error121 "+err);
+	      client.end();
+	    }
+	    else{
+	      callback();
+	    }
+	});
+      }
   });
 }

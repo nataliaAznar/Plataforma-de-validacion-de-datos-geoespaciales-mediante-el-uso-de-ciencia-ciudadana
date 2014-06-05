@@ -46,7 +46,7 @@ exports.createTable = function createTable(callback){
 			  client.end();
 			}
 			else{
-			  client.query( "INSERT INTO error VALUES("+numError+", '"+errorDesc+"', '"+title+"', '"+tableName+"');" , function(err, result){
+			  client.query( "INSERT INTO error VALUES("+numError+", '"+errorDesc+"', '"+title+"', '"+tableName+"', 'edificios_superpuestos.js');" , function(err, result){
 			    if(err) console.log("error insert "+tableName+", erro: "+err);
 			    callback();
 			    client.end();
@@ -186,23 +186,43 @@ exports.test=function test(token, callback){
 exports.getSolution = function getSolution(idError, callback){
   client.connect(function(err) {
 	if(err) {
-	  return console.error('could not connect to postgres', err);
+	  console.log('could not connect to postgres', err);
 	}
 	client.query( "SELECT problem, COUNT(*)  FROM validations WHERE error_type = 104 AND error_id = " + idError + " GROUP BY problem ORDER BY count desc, problem desc", function(err, result){
 	  if(err){
 	    console.log("error getting solution of error104 "+err);
 	    client.end();
+	    callback();
 	  }
 	  else{
 	     var problem = result.rows[0].problem;
 	    if ( problem == "" ){
-		
+		 //comprobar si se a eliminado alguna geometría
+	      client.query("SELECT array_length(geom,1 ) as size, count(array_length(geom,1 )) as count FROM validations WHERE error_type = 101 AND error_id = " + idError + " GROUP BY array_length(geom,1 ) ORDER BY count desc;", function(err, result){
+		if(err){
+		  client.end();
+		  console.log("error "+err);
+		  callback();
+		}
+		else{
+		 if(result.rows[0].size ==1){
+		  console.log("Solución error 101, id = " + idError + ", una geometría borrada ");
+		  client.end();
+		  callback();
+		 }
+		 else{
+		   //comprobar topología
+		   callback();
+		 }
+		}
+	      });
 	    }
 	    else if ( problem == "Borrar elemento" ){
 	      client.query( "SELECT GeometryType(geom[1]) as type, GeometryType(geom[2]) as type2, * FROM error_104 WHERE \"idError\" = "+idError+";", function (err, result){
 		  if(err){
 		    console.log("error getting solution of error104 "+err);
 		    client.end();
+		    callback();
 		  }
 		  else {
 		    var firstEnd = 0;
@@ -221,21 +241,25 @@ exports.getSolution = function getSolution(idError, callback){
 		      if(err){
 			console.log("error getting solution of error104 "+err);
 			client.end();
+			callback();
 		      }
 		      else {
 			client.query("DELETE FROM error_104 WHERE \"idError\" = "+idError+";", function(err, result){
 			   if(err){
 			      console.log("error getting solution of error104 "+err);
 			      client.end();
+			      callback();
 			    }
 			    else {
 			      client.query("DELETE FROM validations WHERE error_id = "+idError+" AND error_type = 104;", function(err, result){
 				  if(err){
 				    console.log("error getting solution of error104 "+err);
 				    client.end();
+				    callback();
 				  }
 				  else {
 				    client.end();
+				    callback();
 				  }
 			      });
 			    }
@@ -256,11 +280,14 @@ exports.getSolution = function getSolution(idError, callback){
 		      if(err){
 			console.log("error getting solution of error104 "+err);
 			client.end();
+			callback();
 		      }
 		      else {
 			secondEnd = 1;
-			if(firstEnd == 1 )
-			client.end();
+			if(firstEnd == 1 ){
+			  client.end();
+			  callback();
+			}
 		      }
 		    });
 		  }
@@ -272,14 +299,19 @@ exports.getSolution = function getSolution(idError, callback){
 		  if(err){
 		    console.log("error getting solution of error104 "+err);
 		    client.end();
+		    callback();
 		  }
 		  else {
 		    client.query( "DELETE FROM validations WHERE error_id = "+idError+" AND error_type = 104  ;", function (err, result){
 			if(err){
 			  console.log("error getting solution of error104 "+err);
 			  client.end();
+			  callback();
 			}
-			else client.end();
+			else {
+			  client.end();
+			  callback();
+			}
 		    });
 		  }
 	      });

@@ -44,7 +44,7 @@ exports.createTable = function createTable(callback){
 			  client.end();
 			}
 			else{
-			  client.query( "INSERT INTO error VALUES("+numError+", '"+errorDesc+"', '"+title+"', '"+tableName+"');" , function(err, result){
+			  client.query( "INSERT INTO error VALUES("+numError+", '"+errorDesc+"', '"+title+"', '"+tableName+"', 'nodo_extremo_via_proximo_otra_carretera.js');" , function(err, result){
 			    if(err) console.log("error insert "+tableName+", erro: "+err);
 			    callback();
 			  });
@@ -164,12 +164,13 @@ client.connect(function(err) {
 exports.getSolution = function getSolution(idError, callback){
   client.connect(function(err) {
 	if(err) {
-	  return console.error('could not connect to postgres', err);
+	  console.log('could not connect to postgres', err);
 	}
 	client.query( "SELECT problem, COUNT(*)  FROM validations WHERE error_type = 109 AND error_id = " + idError + "GROUP BY problem ORDER BY count desc, problem desc", function(err, result){
 	  if(err){
 	    console.log("error getting solution of error109 "+err);
 	    client.end();
+	    callback();
 	  }
 	  else{
 	   var problem = result.rows[0].problem;
@@ -178,25 +179,31 @@ exports.getSolution = function getSolution(idError, callback){
 		if(err){
 		  client.end();
 		  console.log("error "+err);
+		  callback();
 		}
 	      else{
 		if(result.rows[0].size ==1){
 		  console.log("Solución error 109, id = " + idError + ", una geometría borrada ");
 		  client.end();
+		  callback();
 		 }
 		 else{
 		   client.query("SELECT st_intersects(geom[1], geom[2]) as intersects,  count (st_intersects(geom[1], geom[2]))  FROM validations WHERE error_tipe = 109 AND error_id = " + idError + " GROUP BY st_intersects(geom[1], geom[2]) ORDER BY count desc;", function(err, result){
 		     if(err){
 		       console.log("error " + err);
 		       client.end();
+		       callback();
+		     }
 		       else{
 			 if(result.rows[0].intersects){
+			   callback();
 			   //alargo una hasta el punto más cercano de la otra? ¿Como sé que linea tengo que alargar?
 			   //encontrar el puento más cercano de intersección
-			   client.query(
+			   
 			 }
 			 else{
 			  console.log("solución error 109, id = "+idError+", no se cortan"); 
+			  callback();
 			 }
 		       }
 		     });
@@ -228,12 +235,14 @@ exports.getSolution = function getSolution(idError, callback){
 		      if(err){
 			console.log("error getting solution of error109 "+err);
 			client.end();
+			callback();
 		      }
 		      else {
 			eliminarTablaError(idError, client,function(){
 			  firstEnd = 1;
 				    if( secondEnd == 1)
 				    client.end();
+				    callback();
 			});
 		      }
 		    });
@@ -254,8 +263,10 @@ exports.getSolution = function getSolution(idError, callback){
 		      }
 		      else {
 			secondEnd = 1;
-			if(firstEnd == 1 )
+			if(firstEnd == 1 ){
 			client.end();
+			callback();
+			}
 		      }
 		    });
 		  }
@@ -265,6 +276,7 @@ exports.getSolution = function getSolution(idError, callback){
 	    else if ( problem == "Elemento correcto" ){
 	      eliminarTablaError(idError, client, function(){
 		client.end();
+		callback();
 	      });
 	    }
 	  }

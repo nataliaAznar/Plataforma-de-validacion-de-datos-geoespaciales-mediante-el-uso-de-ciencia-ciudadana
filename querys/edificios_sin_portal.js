@@ -45,7 +45,7 @@ exports.createTable = function createTable(callback){
 			  client.end();
 			}
 			else{
-			  client.query( "INSERT INTO error VALUES("+numError+", '"+errorDesc+"', '"+title+"', '"+tableName+"');" , function(err, result){
+			  client.query( "INSERT INTO error VALUES("+numError+", '"+errorDesc+"', '"+title+"', '"+tableName+"', 'edificios_sin_portal.js');" , function(err, result){
 			    if(err) console.log("error insert "+tableName+", erro: "+err);
 			    callback();
 			    client.end();
@@ -157,12 +157,14 @@ exports.test = function test(token, callback){
 exports.getSolution = function getSolution(idError, callback){
   client.connect(function(err) {
 	if(err) {
-	  return console.error('could not connect to postgres', err);
+	  console.log('could not connect to postgres', err);
+	  callback();
 	}
 	client.query( "SELECT problem, COUNT(*)  FROM validations WHERE error_type = 122 AND error_id = " + idError + " GROUP BY problem ORDER BY count desc, problem desc", function(err, result){
 	  if(err){
 	    console.log("error getting solution of error122 "+err);
 	    client.end();
+	    callback();
 	  }
 	  else{
 	    var problem = result.rows[0].problem;
@@ -171,10 +173,12 @@ exports.getSolution = function getSolution(idError, callback){
 		  if(err){
 		    console.log("error getting solution of error122 "+err);
 		    client.end();
+		    callback();
 		  }
 		  else{
 		    var entrance = result.rows[0].entrance;
 		    client.end();
+		    callback();
 		  }
 		});
 	    }
@@ -183,6 +187,7 @@ exports.getSolution = function getSolution(idError, callback){
 		  if(err){
 		    console.log("error getting solution of error122 "+err);
 		    client.end();
+		    callback();
 		  }
 		  else {
 		    var table = "";
@@ -202,21 +207,25 @@ exports.getSolution = function getSolution(idError, callback){
 		      if(err){
 			console.log("error getting solution of error122 "+err);
 			client.end();
+			callback();
 		      }
 		      else {
 			client.query("DELETE FROM error_122 WHERE \"idError\" = "+idError+";", function(err, result){
 			   if(err){
 			      console.log("error getting solution of error122 "+err);
 			      client.end();
+			      callback();
 			    }
 			    else {
 			      client.query("DELETE FROM validations WHERE error_id = "+idError+" AND error_type = 122;", function(err, result){
 				  if(err){
 				    console.log("error getting solution of error122 "+err);
 				    client.end();
+				    callback();
 				  }
 				  else {
 				    client.end();
+				    callback();
 				  }
 			      });
 			    }
@@ -232,14 +241,19 @@ exports.getSolution = function getSolution(idError, callback){
 		  if(err){
 		    console.log("error getting solution of error122 "+err);
 		    client.end();
+		    callback();
 		  }
 		  else {
 		    client.query( "DELETE FROM validations WHERE error_id = "+idError+" AND error_type = 122  ;", function (err, result){
 			if(err){
 			  console.log("error getting solution of error122 "+err);
 			  client.end();
+			  callback();
 			}
-			else client.end();
+			else {
+			  client.end();
+			  callback();
+			}
 		    });
 		  }
 	      });

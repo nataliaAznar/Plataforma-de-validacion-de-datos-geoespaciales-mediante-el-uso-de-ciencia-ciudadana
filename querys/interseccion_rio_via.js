@@ -44,7 +44,7 @@ exports.createTable = function createTable(callback){
 			  client.end();
 			}
 			else{
-			  client.query( "INSERT INTO error VALUES("+numError+", '"+errorDesc+"', '"+title+"', '"+tableName+"');" , function(err, result){
+			  client.query( "INSERT INTO error VALUES("+numError+", '"+errorDesc+"', '"+title+"', '"+tableName+"', 'interseccion_rio_via.js');" , function(err, result){
 			    if(err) console.log("error insert "+tableName+", erro: "+err);
 			    callback();
 			    client.end();
@@ -265,20 +265,39 @@ exports.getSolution = function getSolution(idError, callback){
 	  if(err){
 	    console.log("error getting solution of error107 "+err);
 	    client.end();
+	    callback();
 	  }
 	  else{
 	    var problem = result.rows[0].problem;
 	    if ( problem == "" ){
-	      client.query("SELECT count(tags[1]->'bridge') + count (tags[2]->'bridge') as bridge, count(tags[1]->'layer') + count(tags[2]->'layer') as layer FROM validations WHERE error_type = 107 AND error_id = " + idError + , function(err, result){
+	      client.query("SELECT array_length(geom,1 ) as size, count(array_length(geom,1 )) as count FROM validations WHERE error_type = 110 AND error_id = " + idError + " GROUP BY array_length(geom,1 ) ORDER BY count desc;", function(err, result){
 		if(err){
-		  console.log("error " + err);
+		  callback();
 		  client.end();
+		  console.log("error "+err);
 		}
-		else{
-		  if (result.rows[0].bridge > result.rows[0].layer) console.log("Solución error 107, id = " + idError + ", la carretera es un puente");
-		    else console.log("Solución error 107, id = " + idError + ", el río tiene layer");
-		 client.end(); 
-		}
+	      else{
+		if(result.rows[0].size ==1){
+		  console.log("Solución error 110, id = " + idError + ", una geometría borrada ");
+		  callback();
+		  client.end();
+		 }
+		 else{
+		    client.query("SELECT count(tags[1]->'bridge') + count (tags[2]->'bridge') as bridge, count(tags[1]->'layer') + count(tags[2]->'layer') as layer FROM validations WHERE error_type = 107 AND error_id = " + idError , function(err, result){
+		      if(err){
+			console.log("error " + err);
+			client.end();
+			callback();
+		      }
+		      else{
+			if (result.rows[0].bridge > result.rows[0].layer) console.log("Solución error 107, id = " + idError + ", la carretera es un puente");
+			  else console.log("Solución error 107, id = " + idError + ", el río tiene layer");
+		      client.end(); 
+		      callback();
+		      }
+		    });
+		 }
+	      }
 	      });
 	    }
 	    else if ( problem == "Borrar elemento" ){
@@ -286,6 +305,7 @@ exports.getSolution = function getSolution(idError, callback){
 		  if(err){
 		    console.log("error getting solution of error107 "+err);
 		    client.end();
+		    callback();
 		  }
 		  else {
 		    var firstEnd = 0;
@@ -304,23 +324,28 @@ exports.getSolution = function getSolution(idError, callback){
 		      if(err){
 			console.log("error getting solution of error107 "+err);
 			client.end();
+			callback();
 		      }
 		      else {
 			client.query("DELETE FROM error_107 WHERE \"idError\" = "+idError+";", function(err, result){
 			   if(err){
 			      console.log("error getting solution of error107 "+err);
 			      client.end();
+			      callback();
 			    }
 			    else {
 			      client.query("DELETE FROM validations WHERE error_id = "+idError+" AND error_type = 107;", function(err, result){
 				  if(err){
 				    console.log("error getting solution of error107 "+err);
 				    client.end();
+				    callback();
 				  }
 				  else {
 				    firstEnd = 1;
-				    if( secondEnd == 1)
-				    client.end();
+				    if( secondEnd == 1){
+				      client.end();
+				      callback();
+				    }
 				  }
 			      });
 			    }
@@ -341,11 +366,14 @@ exports.getSolution = function getSolution(idError, callback){
 		      if(err){
 			console.log("error getting solution of error107 "+err);
 			client.end();
+			callback();
 		      }
 		      else {
 			secondEnd = 1;
-			if(firstEnd == 1 )
-			client.end();
+			if(firstEnd == 1 ){
+			  client.end();
+			  callback();
+			}
 		      }
 		    });
 		  }
@@ -357,14 +385,19 @@ exports.getSolution = function getSolution(idError, callback){
 		  if(err){
 		    console.log("error getting solution of error107 "+err);
 		    client.end();
+		    callback();
 		  }
 		  else {
 		    client.query( "DELETE FROM validations WHERE error_id = "+idError+" AND error_type = 107  ;", function (err, result){
 			if(err){
 			  console.log("error getting solution of error107 "+err);
 			  client.end();
+			  callback();
 			}
-			else client.end();
+			else{
+			  client.end();
+			  callback();
+			}
 		    });
 		  }
 	      });

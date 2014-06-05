@@ -44,7 +44,7 @@ exports.createTable = function createTable(callback){
 			  client.end();
 			}
 			else{
-			  var query = "INSERT INTO error VALUES("+numError+", '"+errorDesc+"', '"+title+"', '"+ tableName+"');";
+			  var query = "INSERT INTO error VALUES("+numError+", '"+errorDesc+"', '"+title+"', '"+ tableName+"', 'area_no_cerrada.js');";
 			  client.query( query , function(err, result){
 			    if(err){
 			      console.log("error insert "+tableName+", erro: "+err);
@@ -280,20 +280,23 @@ function(err, results){
 exports.getSolution = function getSolution(idError, callback){
   client.connect(function(err) {
 	if(err) {
-	  return console.error('could not connect to postgres', err);
+	  console.log('could not connect to postgres', err);
+	  callback();
 	}
 	client.query( "SELECT problem, COUNT(*)  FROM validations WHERE error_type = 100 AND error_id = " + idError + " GROUP BY problem ORDER BY count desc, problem desc", function(err, result){
 	  if(err){
 	    console.log("error getting solution of error100 "+err);
 	    client.end();
+	    callback();
 	  }
 	  else{
 	    var problem = result.rows[0].problem;
 	    if ( problem == "" ){
 		client.query("SELECT ST_IsClosed(geom[1]) as closed, count (ST_IsClosed(geom[1])) FROM validations WHERE error_type = 100 AND error_id = " + idError + " GROUP BY ST_IsClosed(geom[1]) ORDER BY count desc", function(err, result){
-		  ir(err){
+		  if(err){
 		    console.log("error "+err);
 		    client.end();
+		    callback();
 		  }
 		  else{
 		    if(result.rows[0].closed){
@@ -302,6 +305,7 @@ exports.getSolution = function getSolution(idError, callback){
 			if (err){
 			  console.log(err);
 			  client.end();
+			  callback();
 			}
 			else{
 			  var geometries = [];
@@ -311,14 +315,16 @@ exports.getSolution = function getSolution(idError, callback){
 			  var geom = geometries.shift();
 			  intersection(geometries, geom,  function(g){
 			    //update en tabla line o insert en tabla de poligonos?
-			    client.query("UPDATE SET WHERE ", function(errm result){
+			    client.query("UPDATE SET WHERE ", function(err, result){
 			      if(err){
 				console.log("error " + err);
 				client.end();
+				callback();
 			      }
 			    else{
 			      eliminarTablaError(idError, client, function(){
 				client.end();
+				callback();
 			      });
 			    }
 			    });
@@ -333,12 +339,15 @@ exports.getSolution = function getSolution(idError, callback){
 			if(err){
 			  console.log("error " + err);
 			  client.end();
+			  callback();
+			}
 			  else{
 			    var tags = result.rows[0].tags;
 			    client.query("SELECT osm_id FROM error100 WHERE \"idError\" = "+idError+";", function(err, result){
 			      if(err){
 				consol.log("error "+ err);
 				client.end();
+				callback();
 			      }
 			      else{
 				var id = result.rows[0].osm_id[1];
@@ -346,10 +355,12 @@ exports.getSolution = function getSolution(idError, callback){
 				  if(err){
 				   console.log("error " + err);
 				   client.end();
+				   callback();
 				  }
 				  else{
 				    eliminarTablaError(idError, client, function(){
 				      client.end();
+				      callback();
 				    });
 				  }
 				});
@@ -368,6 +379,7 @@ exports.getSolution = function getSolution(idError, callback){
 		  if(err){
 		    console.log("error getting solution of error100 "+err);
 		    client.end();
+		    callback();
 		  }
 		  else {
 		    var table = "";
@@ -387,10 +399,12 @@ exports.getSolution = function getSolution(idError, callback){
 		      if(err){
 			console.log("error getting solution of error100 "+err);
 			client.end();
+			callback();
 		      }
 		      else {
 			eliminarTablaError(idError, client, function(){
 			  client.end();
+			  callback();
 			});
 		      }
 		    });
@@ -401,6 +415,7 @@ exports.getSolution = function getSolution(idError, callback){
 	    else if ( problem == "Elemento correcto" ){
 	      eliminarTablaError(idError, client, function(){
 		client.end();
+		callback();
 	      });
 	    }
 	  }
@@ -431,14 +446,19 @@ function eliminarTablaError(idError, client, callback){
 	if(err){
 	  console.log("error getting solution of error100 "+err);
 	  client.end();
+	  callback();
 	}
 	else {
 	  client.query( "DELETE FROM validations WHERE error_id = "+idError+" AND error_type = 100  ;", function (err, result){
 	      if(err){
 		console.log("error getting solution of error100 "+err);
 		client.end();
+		callback();
 	      }
-	      else client.end();
+	      else{
+		client.end();
+		callback();
+	      }
 	  });
 	}
     });

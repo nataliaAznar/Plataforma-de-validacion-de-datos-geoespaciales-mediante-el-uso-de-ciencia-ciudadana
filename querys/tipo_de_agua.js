@@ -40,7 +40,7 @@ exports.createTable = function createTable(callback){
 			  client.end();
 			}
 			else{
-			  client.query( "INSERT INTO error VALUES("+numError+", '"+errorDesc+"', '"+title+"', '"+tableName+"');" , function(err, result){
+			  client.query( "INSERT INTO error VALUES("+numError+", '"+errorDesc+"', '"+title+"', '"+tableName+"', 'tipo_de_agua.js');" , function(err, result){
 			    if(err) console.log("error insert "+tableName+", erro: "+err);
 			    callback();
 			    client.end();
@@ -239,14 +239,16 @@ exports.getSolution = function getSolution(idError, callback){
 	  if(err){
 	    console.log("error getting solution of error118 "+err);
 	    client.end();
+	    callback();
 	  }
 	  else{
 	    var problem = result.rows[0].problem;
 	    if ( problem == "" ){
-		cclient.query( "SELECT count(tags->'waterway') AS waterway, count(tags->'natural') AS natural, count(tags->'leisure') AS leisure, count(tags->'amenity') AS amenity, count(tags->'emergency') AS emergency, count(tags->'landuse') AS landuse, count(tags->'man_made') AS man_made, count(tags->'mooring') AS mooring  FROM validations WHERE error_type = 118 AND error_id = " + idError + "; ", function (err, result){ 
+		client.query( "SELECT count(tags[1]->'waterway') AS waterway, count(tags[1]->'natural') AS natural, count(tags[1]->'leisure') AS leisure, count(tags[1]->'amenity') AS amenity, count(tags[1]->'emergency') AS emergency, count(tags[1]->'landuse') AS landuse, count(tags[1]->'man_made') AS man_made, count(tags[1]->'mooring') AS mooring  FROM validations WHERE error_type = 118 AND error_id = " + idError + "; ", function (err, result){ 
 		    if(err){
 		      console.log("error getting solution of error118 "+err);
 		      client.end();
+		      callback();
 		    }
 		    else{
 		      var number = Math.max(result.rows[0].waterway, result.rows[0].natural, result.rows[0].leisure, result.rows[0].amenity, result.rows[0].emergency, result.rows[0].landuse, result.rows[0].man_made, result.rows[0].mooring);
@@ -259,14 +261,16 @@ exports.getSolution = function getSolution(idError, callback){
 		      else if ( number = result.rows[0].landuse) name = "landuse";
 		      else if ( number = result.rows[0].man_made) name = "man_made";
 		      else if ( number = result.rows[0].mooring) name = "mooring";
-		      client.query( "SELECT (tags->'"+name+"') AS name, count(tags->'"+name+"') AS count FROM validations WHERE error_type = 118 AND error_id = " + idError + " AND (tags->'"+name+"') is not null GROUP BY (tags->'"+name+"') ORDER BY count desc", function (err, result){
+		      client.query( "SELECT (tags[1]->'"+name+"') AS name, count(tags[1]->'"+name+"') AS count FROM validations WHERE error_type = 118 AND error_id = " + idError + " AND (tags[1]->'"+name+"') is not null GROUP BY (tags[1]->'"+name+"') ORDER BY count desc", function (err, result){
 			  if(err){
 			    console.log("error getting solution of error118 "+err);
 			    client.end();
+			    callback();
 			  }
 			  else{
-			  var name = result.rows[0].name;
-			  console.log("solución error 118, id = " + idError + ", " + name);
+			    var name = result.rows[0].name;
+			    console.log("solución error 118, id = " + idError + ", " + name);
+			    callback();
 			}
 		      });
 		    }
@@ -277,6 +281,7 @@ exports.getSolution = function getSolution(idError, callback){
 		  if(err){
 		    console.log("error getting solution of error118 "+err);
 		    client.end();
+		    callback();
 		  }
 		  else {
 		    var table = "";
@@ -296,21 +301,25 @@ exports.getSolution = function getSolution(idError, callback){
 		      if(err){
 			console.log("error getting solution of error118 "+err);
 			client.end();
+			callback();
 		      }
 		      else {
 			client.query("DELETE FROM error_118 WHERE \"idError\" = "+idError+";", function(err, result){
 			   if(err){
 			      console.log("error getting solution of error118 "+err);
 			      client.end();
+			      callback();
 			    }
 			    else {
 			      client.query("DELETE FROM validations WHERE error_id = "+idError+" AND error_type = 118;", function(err, result){
 				  if(err){
 				    console.log("error getting solution of error118 "+err);
 				    client.end();
+				    callback();
 				  }
 				  else {
 				    client.end();
+				    callback();
 				  }
 			      });
 			    }
@@ -326,14 +335,19 @@ exports.getSolution = function getSolution(idError, callback){
 		  if(err){
 		    console.log("error getting solution of error118 "+err);
 		    client.end();
+		    callback();
 		  }
 		  else {
 		    client.query( "DELETE FROM validations WHERE error_id = "+idError+" AND error_type = 118  ;", function (err, result){
 			if(err){
 			  console.log("error getting solution of error118 "+err);
 			  client.end();
+			  callback();
 			}
-			else client.end();
+			else {
+			  client.end();
+			  callback();
+			}
 		    });
 		  }
 	      });

@@ -46,7 +46,7 @@ exports.createTable = function createTable(callback){
 			  client.end();
 			}
 			else{
-			  client.query( "INSERT INTO error VALUES("+numError+", '"+errorDesc+"', '"+title+"', '"+tableName+"');" , function(err, result){
+			  client.query( "INSERT INTO error VALUES("+numError+", '"+errorDesc+"', '"+title+"', '"+tableName+"', 'cruce_de_vias.js');" , function(err, result){
 			    if(err) console.log("error insert "+tableName+", erro: "+err);
 			    callback();
 			    client.end();
@@ -189,6 +189,7 @@ exports.getSolution = function getSolution(idError, callback){
 	  if(err){
 	    console.log("error getting solution of error101 "+err);
 	    client.end();
+	    callback();
 	  }
 	  else{
 	    var problem = result.rows[0].problem;
@@ -198,11 +199,13 @@ exports.getSolution = function getSolution(idError, callback){
 		if(err){
 		  client.end();
 		  console.log("error "+err);
+		  callback();
 		}
 		else{
 		 if(result.rows[0].size ==1){
 		  console.log("Solución error 101, id = " + idError + ", una geometría borrada ");
 		  client.end();
+		  callback();
 		 }
 		 else{
 		   //comprobar si se han añadido los tags "layer"
@@ -210,6 +213,7 @@ exports.getSolution = function getSolution(idError, callback){
 		    if (err){
 			client.end();
 			console.log("error "+err);
+			callback();
 		    }
 		    else{
 		      var layer = result.rows[0].layer;
@@ -217,12 +221,14 @@ exports.getSolution = function getSolution(idError, callback){
 			  if (err){
 			      client.end();
 			      console.log("error "+err);
+			      callback();
 			  }
 			  else{
 			    var layer2 = result.rows[0].layer;
 			    if( layer || layer2){
-			    console.log("Solución error 101, id = " + idError + ", layer1 = " + layer + ", layer2 = " + layer1);
-			    client.end();
+			      console.log("Solución error 101, id = " + idError + ", layer1 = " + layer + ", layer2 = " + layer1);
+			      client.end();
+			      callback();
 			    }
 			    else{
 			    //hayar el punto de unión de las geometrías
@@ -230,6 +236,7 @@ exports.getSolution = function getSolution(idError, callback){
 				  if(err){
 				    console.log("error " + err);
 				    client.end();
+				    callback();
 				  }
 				  else{
 				    var point = result.rows[0].point;
@@ -244,6 +251,7 @@ exports.getSolution = function getSolution(idError, callback){
 				     if(err){
 				      console.log("error " + err);
 				      client.end();
+				      callback();
 				     }
 				     else{
 				       geom1 = result.rows[0].geom;
@@ -253,6 +261,7 @@ exports.getSolution = function getSolution(idError, callback){
 					if(err){
 					 console.log("error ", err);
 					 client.end();
+					 callback();
 					}
 					else{
 					  geom2 = result.rows[0].geom;
@@ -262,17 +271,20 @@ exports.getSolution = function getSolution(idError, callback){
 					      if(err){
 						console.log("erroe "+err);
 						client.end();
+						callback();
 					      }
 					      else{
 						client.query("UPDATE validator_lines SET way =  ST_GeomFromText" + geom2 + " WHERE id = " + id2 + ";", function(err, result){
 						  if(err){
 						    console.log("erroe "+err);
 						    client.end();
+						    callback();
 						  }
 						  else{
 						    //eliminar de las tablas de error y validación
 						    eliminarTablaError(idError, client, function(){
 						      client.end();
+						      callback();
 						    });
 						  }
 						});
@@ -301,6 +313,7 @@ exports.getSolution = function getSolution(idError, callback){
 		  if(err){
 		    console.log("error getting solution of error101 "+err);
 		    client.end();
+		    callback();
 		  }
 		  else {
 		    var firstEnd = 0;
@@ -319,13 +332,16 @@ exports.getSolution = function getSolution(idError, callback){
 		      if(err){
 			console.log("error getting solution of error101 "+err);
 			client.end();
+			callback();
 		      }
 		      else {
 			eliminarTablaError(idError, client, function(){
 			  firstEnd = 1;
-			  if( secondEnd == 1)
+			  if( secondEnd == 1){
 			    client.end();
-			}
+			    callback();
+			  }
+			});
 		      }
 		    });
 		    table = "";
@@ -342,11 +358,15 @@ exports.getSolution = function getSolution(idError, callback){
 		      if(err){
 			console.log("error getting solution of error107 "+err);
 			client.end();
+			callback();
 		      }
 		      else {
 			secondEnd = 1;
 			if(firstEnd == 1 )
-			client.end();
+			{
+			  client.end();
+			  callback();
+			}
 		      }
 		    });
 		  }
@@ -356,6 +376,7 @@ exports.getSolution = function getSolution(idError, callback){
 	    else if ( problem == "Elemento correcto" ){
 	      eliminarTablaError(idError, client, function(){
 		client.end();
+		callback();
 	      });
 	    }
 	  }
